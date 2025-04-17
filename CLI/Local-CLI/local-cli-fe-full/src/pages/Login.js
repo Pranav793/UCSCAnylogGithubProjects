@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { login, isLoggedIn } from '../services/auth';
 import '../styles/App.css';
 
-
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -15,15 +14,9 @@ const Login = () => {
     e.preventDefault();
     setError(null);
     try {
-      
-      const result = await login({email, password});
-      console.log("login result:", result);
-
-      const token = localStorage.getItem('authToken');
-      console.log("Stored token after login:", token);
+      const result = await login({ email, password });
 
       if (isLoggedIn()) {
-        console.log("User is logged in");
         navigate('/dashboard/client');
         window.location.reload();
       } else {
@@ -35,34 +28,44 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit} className="login-form">
-        <div className="form-group">
-          <label>Email:</label>
-          <input
-            type="text"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+    <div className="modern-login-page">
+      <div className="modern-login-box">
+        <h3 className="login-subtitle">Log in to</h3>
+        <h1 className="login-brand">Anylog</h1>
+
+        <form onSubmit={handleSubmit} className="modern-login-form">
+          <div className="form-group with-icon">
+            <i className="fas fa-envelope"></i>
+            <input
+              type="email"
+              placeholder="Your Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group with-icon">
+            <i className="fas fa-lock"></i>
+            <input
+              type="password"
+              placeholder="Your Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          <button type="submit" className="login-submit">Log in</button>
+        </form>
+
+        <div className="login-links">
+          <Link to="/forgot-password">Forgot password?</Link>
+          <p>Don't have an account? <Link to="/signup">Sign up</Link></p>
         </div>
-        <div className="form-group">
-          <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {/* {error && <div className="error">{error}</div>} */}
-        <button type="submit">Log In</button>
-        {error && <div className="error">{error}</div>}
-                <p style={{ textAlign: 'center', marginTop: '10px' }}>
-                  Don't have an account? <Link to="/signup">Sign up here</Link>.
-                </p>
-      </form>
+      </div>
     </div>
   );
 };
