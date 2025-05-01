@@ -338,3 +338,50 @@ export async function updateBookmarkDescription({ jwt, node, description }) {
   }
 }
 
+export async function logNodeUsage({ jwt, node }) {
+  if (!jwt || !node) return;
+
+  try {
+    const requestBody = {
+      token: { jwt },
+      conn: { conn: node },
+    };
+
+    const response = await fetch(`http://127.0.0.1:8000/log-node/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to log node usage`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error logging node usage:', error);
+  }
+}
+
+
+export async function getNodeHistory({ jwt }) {
+  if (!jwt) return;
+
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/get-node-history/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: { jwt } }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get node history`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting node history:', error);
+    return [];
+  }
+}
+

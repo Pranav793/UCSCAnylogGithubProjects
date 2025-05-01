@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Body
 from pydantic import BaseModel
 from typing import Dict
 from parsers import parse_response
-from auth import supabase_signup, supabase_get_user, supabase_login, supabase_logout, supabase_bookmark_node, supabase_get_bookmarked_nodes, supabase_delete_bookmarked_node, supabase_update_bookmark_description
+from auth import supabase_signup, supabase_get_user, supabase_login, supabase_logout, supabase_bookmark_node, supabase_get_bookmarked_nodes, supabase_delete_bookmarked_node, supabase_update_bookmark_description, supabase_log_node_usage, supabase_get_node_history
 from helpers import make_request, grab_network_nodes, monitor_network, make_policy, send_json_data
 
 app = FastAPI()
@@ -50,6 +50,9 @@ class BookmarkUpdateRequest(BaseModel):
     token: AccessToken
     node: str
     description: str
+
+class TokenRequest(BaseModel):
+    token: AccessToken
 
 @app.get("/")
 def get_status():
@@ -191,5 +194,28 @@ def update_bookmark_description(request: BookmarkUpdateRequest):
 
     response = supabase_update_bookmark_description(user_id, request.node, request.description)
     return {"data": response.data}
+
+@app.post("/log-node/")
+def log_node(token: AccessToken, conn: Connection):
+    user = supabase_get_user(token.jwt)
+    user_id = user.user.id
+
+    response = supabase_log_node_usage(user_id, conn.conn)
+    return {"data": response.data}
+
+@app.post("/get-node-history/")
+def get_node_history(request: TokenRequest):
+    user = supabase_get_user(request.token.jwt)
+    user_id = user.user.id
+
+    response = supabase_get_node_history(user_id)
+    return {"data": response.data}
+# @app.post("/get-node-history/")
+# async def get_node_history(request: Request):
+#     body = await request.json()
+#     print("📦 Raw request body:", body)
+#     return {"debug": "ok"}
+
+
 
 

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { getConnectedNodes, bookmarkNode } from '../services/api'; // Adjust the import path as necessary
 import '../styles/NodePicker.css'; // Optional: create a CSS file for node picker styling
 import { isLoggedIn } from '../services/auth';
+import { logNodeUsage } from '../services/api';
 import { useEffect } from 'react';
 
 const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode }) => {
@@ -22,14 +23,25 @@ const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode }) => {
   }, [bookmarkMsg]);
 
 
-  const handleAdd = () => {
-    // Basic validation: check that new node is not empty, and ideally matches "ip:port" format
+  const handleAdd = async () => {
     if (newNode.trim()) {
-      onAddNode(newNode.trim());
-      onSelectNode(newNode.trim());
+      const selected = newNode.trim();
+      onAddNode(selected);
+      onSelectNode(selected);
+  
+      const jwt = localStorage.getItem('accessToken');
+      if (jwt) {
+        try {
+          await logNodeUsage({ jwt, node: selected });
+        } catch (err) {
+          console.error('Failed to log usage:', err);
+        }
+      }
+  
       setNewNode('');
     }
   };
+  
 
   const handleAddConnectedNodes = async (e) => {
     e.preventDefault();
@@ -59,13 +71,23 @@ const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode }) => {
     return node;
   };
 
-  const handleLocalChange = (e) => {
+  const handleLocalChange = async (e) => {
     const isLocal = e.target.checked;
     setLocal(isLocal);
-    console.log("Local mode is now:", e.target.checked);
-    // console.log("makeLocal is now:", makeLocal(selectedNode));
-    onSelectNode(makeLocal(selectedNode, isLocal));
-  }
+  
+    const updatedNode = makeLocal(selectedNode, isLocal);
+    onSelectNode(updatedNode);
+  
+    const jwt = localStorage.getItem('accessToken');
+    if (jwt) {
+      try {
+        await logNodeUsage({ jwt, node: updatedNode });
+      } catch (err) {
+        console.error('Failed to log usage (local toggle):', err);
+      }
+    }
+  };
+  
 
   const handleBookmark = async () => {
     if (!selectedNode) {
@@ -90,11 +112,24 @@ const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode }) => {
 
   return (
     <div className="node-picker-container">
-      <select
-        className="node-picker-select"
-        value={selectedNode}
-        onChange={(e) => onSelectNode(e.target.value)}
-      >
+    <select
+      className="node-picker-select"
+      value={selectedNode}
+      onChange={async (e) => {
+        const selected = e.target.value;
+        onSelectNode(selected);
+
+        const jwt = localStorage.getItem('accessToken');
+        if (jwt) {
+          try {
+            await logNodeUsage({ jwt, node: selected });
+          } catch (err) {
+            console.error('Failed to log usage:', err);
+          }
+        }
+      }}
+    >
+
         {nodes.map((node, index) => (
           <option key={index} value={node}>
             {node}

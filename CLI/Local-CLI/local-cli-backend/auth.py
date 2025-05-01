@@ -102,6 +102,27 @@ def supabase_update_bookmark_description(id, node, description):
     )
     return response
 
+def supabase_log_node_usage(user_id, node):
+    response = (
+        supabase
+        .table("node_history")
+        .insert({"user_id": user_id, "node": node})
+        .execute()
+    )
+    return response
+
+
+def supabase_get_node_history(user_id):
+    response = (
+        supabase
+        .table("node_history")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return response
+
 
 # resp = supabase_signup("ppurathe@ucsc.edu", "pass1234", "peter", "pp")
 

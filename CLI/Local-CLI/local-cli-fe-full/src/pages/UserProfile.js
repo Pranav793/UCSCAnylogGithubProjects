@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUser, logout } from '../services/auth'; // Adjust path as needed
 import { getBookmarks, deleteBookmarkedNode } from '../services/api';
 import { updateBookmarkDescription } from '../services/api';
+import { getNodeHistory } from '../services/api';
 import BookmarkTable from '../components/BookmarkTable';
 
 // import '../styles/UserProfile.css';
@@ -15,6 +16,9 @@ const UserProfile = () => {
     const [loadingBookmarks, setLoadingBookmarks] = useState(true);
     const [bookmarksError, setBookmarksError] = useState(null);
 
+    const [nodeHistory, setNodeHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(true);
+    const [historyError, setHistoryError] = useState(null);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -60,7 +64,24 @@ const UserProfile = () => {
         fetchBookmarks();
     }, []);
 
-
+    useEffect(() => {
+        const fetchHistory = async () => {
+            setLoadingHistory(true);
+            setHistoryError(null);
+            try {
+                const jwt = localStorage.getItem('accessToken');
+                const result = await getNodeHistory({ jwt });
+                setNodeHistory(result.data || []);
+            } catch (err) {
+                setHistoryError('Failed to load node history');
+            } finally {
+                setLoadingHistory(false);
+            }
+        };
+    
+        fetchHistory();
+    }, []);
+    
     const handleLogout = async () => {
         try {
             await logout();
@@ -159,6 +180,35 @@ const UserProfile = () => {
 
                 )}
             </div>
+            <div className="history-section" style={{ marginTop: '2rem' }}>
+    <h2>Your Node Usage History</h2>
+
+    {loadingHistory ? (
+        <div>Loading history…</div>
+        ) : historyError ? (
+        <div className="error">{historyError}</div>
+        ) : nodeHistory.length === 0 ? (
+        <div>No node usage history yet.</div>
+        ) : (
+        <table className="data-table">
+            <thead>
+                <tr>
+                    <th>Node</th>
+                    <th>Last Used</th>
+                </tr>
+            </thead>
+            <tbody>
+                {nodeHistory.map((entry, idx) => (
+                    <tr key={idx}>
+                        <td>{entry.node}</td>
+                        <td>{new Date(entry.created_at).toLocaleString()}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+        )}
+    </div>
+
         </div>
     );
 };
