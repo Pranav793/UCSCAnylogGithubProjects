@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getUser, logout } from '../services/auth'; // Adjust path as needed
+import { getUser, logout } from '../services/auth';
 import { getBookmarks, deleteBookmarkedNode } from '../services/api';
 import { updateBookmarkDescription } from '../services/api';
 import BookmarkTable from '../components/BookmarkTable';
 
-// import '../styles/UserProfile.css';
+import '../styles/UserProfile.css'; 
 
 const UserProfile = () => {
     const [user, setUser] = useState(null);
@@ -76,17 +76,19 @@ const UserProfile = () => {
 
 
     if (loading) {
-        return <div className="userprofile-container">Loading...</div>;
+        return <div className="userprofile-container"><div className="loading-indicator">Loading...</div></div>;
     }
 
     if (error) {
         console.log("Error: ", error);
         return (
             <div className="userprofile-container">
-                <div className="userprofile-container error">{error}</div>
-                <button onClick={handleLogout} className="logout-button">
-                    Logout
-                </button>
+                <div className="error">{error}</div>
+                <div className="logout-container">
+                    <button onClick={handleLogout} className="logout-button">
+                        Logout
+                    </button>
+                </div>
             </div>
         );
     }
@@ -118,38 +120,33 @@ const UserProfile = () => {
     return (
         <div className="userprofile-container">
             <div className="profile-card">
-                {/* <img
-                    src={user.avatarUrl || '/assets/default-avatar.png'}
-                    alt="Profile"
-                    className="profile-avatar"
-                /> */}
-                <h1 className="profile-name">{user.first_name} {user.last_name}</h1>
-                <p className="profile-email">{user.email}</p>
-                {/* Add more fields as needed */}
-                {/* Logout button */}
-                <button
-                    onClick={handleLogout}
-                    className="logout-button"
-                    style={{
-                        marginTop: '1rem',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '0.25rem',
-                        border: 'none',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Logout
-                </button>
+                <h2 className="section-header">User Information</h2>
+                <ul className="user-info-list">
+                    <li className="user-info-item">
+                        <span className="user-info-label">First Name:</span>
+                        <span className="user-info-value">{user.first_name}</span>
+                    </li>
+                    <li className="user-info-item">
+                        <span className="user-info-label">Last Name:</span>
+                        <span className="user-info-value">{user.last_name}</span>
+                    </li>
+                    <li className="user-info-item">
+                        <span className="user-info-label">Email:</span>
+                        <span className="user-info-value">{user.email}</span>
+                    </li>
+                </ul>
+                {/* Removed logout button from here */}
             </div>
-            <div className="bookmarks-section" style={{ marginTop: '2rem' }}>
-                <h2>Your Bookmarked Nodes</h2>
+            
+            <div className="bookmarks-section">
+                <h2 className="section-header">Your Bookmarked Nodes</h2>
 
                 {loadingBookmarks ? (
-                    <div>Loading bookmarks…</div>
+                    <div className="loading-indicator">Loading bookmarks…</div>
                 ) : bookmarksError ? (
                     <div className="error">{bookmarksError}</div>
                 ) : bookmarks.length === 0 ? (
-                    <div>No bookmarks yet.</div>
+                    <div className="no-bookmarks">No bookmarks yet.</div>
                 ) : (
                     <BookmarkTable
                         data={bookmarks}
@@ -158,6 +155,16 @@ const UserProfile = () => {
 
 
                 )}
+            </div>
+            
+            {/* Logout button at the end of the entire page */}
+            <div className="logout-container">
+                <button
+                    onClick={handleLogout}
+                    className="logout-button"
+                >
+                    Logout
+                </button>
             </div>
         </div>
     );
