@@ -185,23 +185,23 @@ export function isLoggedIn() {
 
     // console.log("Expiry time:", localStorage.getItem('expiresAt'));
 
-    const expiresAt = localStorage.getItem('expiresAt');
-    const now = Date.now()/1000;
-    const expired = now >= expiresAt;
-
-
-    console.log("Current time:", now);
-    console.log("Expires at time:", expiresAt);
-    console.log("Is token expired?", expired);
-
-    if (expired) {
-        console.log("Token has expired");
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('expiresAt');
-        return false;
-    }
-    
+//    const expiresAt = localStorage.getItem('expiresAt');
+//    const now = Date.now()/1000;
+//    const expired = now >= expiresAt;
+//
+//
+//    console.log("Current time:", now);
+//    console.log("Expires at time:", expiresAt);
+//    console.log("Is token expired?", expired);
+//
+//    if (expired) {
+//        console.log("Token has expired");
+//        localStorage.removeItem('accessToken');
+//        localStorage.removeItem('refreshToken');
+//        localStorage.removeItem('expiresAt');
+//        return false;
+//    }
+//
     // return !!localStorage.getItem('authToken');
     return true; // For testing purposes, always return true
   }

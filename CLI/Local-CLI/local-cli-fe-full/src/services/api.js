@@ -1,4 +1,6 @@
 // src/services/api.js
+const API_URL = window._env_?.REACT_APP_API_URL || "http://localhost:8000";
+
 
 // Example: "sendCommand" function that POSTs a command to your server
 export async function sendCommand({ connectInfo, method, command }) {
@@ -16,7 +18,7 @@ export async function sendCommand({ connectInfo, method, command }) {
 
     // Example: a POST request using fetch
     // The URL here might be constructed using connectInfo or some known base URL
-    const response = await fetch(`http://127.0.0.1:8000/send-command`, {
+    const response = await fetch(`${API_URL}/send-command`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +53,7 @@ export async function getConnectedNodes({ selectedNode }) {
   try {
     const requestBody = { conn: connectInfo };
 
-    const response = await fetch(`http://127.0.0.1:8000/get-network-nodes/`, {
+    const response = await fetch(`${API_URL}/get-network-nodes/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +91,7 @@ export async function monitor({ node }) {
   try {
     const requestBody = { conn: connectInfo };
 
-    const response = await fetch(`http://127.0.0.1:8000/monitor/`, {
+    const response = await fetch(`${API_URL}/monitor/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -125,7 +127,7 @@ export async function submitPolicy({ connectInfo, policy }) {
 
     const requestBody = { conn: { conn: connectInfo }, policy: policy };
 
-    const response = await fetch(`http://127.0.0.1:8000/submit-policy/`, {
+    const response = await fetch(`${API_URL}/submit-policy/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -163,7 +165,7 @@ export async function addData({ connectInfo, db, table, data }) {
 
     const requestBody = { conn: { conn: connectInfo }, dbconn: { dbms: db, table: table }, data: data };
 
-    const response = await fetch(`http://127.0.0.1:8000/add-data/`, {
+    const response = await fetch(`${API_URL}/add-data/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -203,7 +205,7 @@ export async function bookmarkNode({ jwt, node }) {
 
     const requestBody = { conn: { conn: node }, token: { jwt: jwt } };
 
-    const response = await fetch(`http://127.0.0.1:8000/bookmark-node/`, {
+    const response = await fetch(`${API_URL}/bookmark-node/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -244,7 +246,7 @@ export async function getBookmarks({ jwt }) {
 
     const requestBody = { jwt: jwt } ;
 
-    const response = await fetch(`http://127.0.0.1:8000/get-bookmarked-nodes/`, {
+    const response = await fetch(`${API_URL}/get-bookmarked-nodes/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -282,7 +284,7 @@ export async function viewBlobs({ connectInfo, blobs }) {
   try {
     const requestBody = { conn: { conn: connectInfo }, blobs: blobs };
 
-    const response = await fetch(`http://127.0.0.1:8000/view-blobs/`, {
+    const response = await fetch(`${API_URL}/view-blobs/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -323,7 +325,7 @@ export async function deleteBookmarkedNode({ jwt, node }) {
       token: { jwt: jwt },
     };
 
-    const response = await fetch(`http://127.0.0.1:8000/delete-bookmarked-node/`, {
+    const response = await fetch(`${API_URL}/delete-bookmarked-node/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -358,7 +360,7 @@ export async function updateBookmarkDescription({ jwt, node, description }) {
       description,
     };
 
-    const response = await fetch(`http://127.0.0.1:8000/update-bookmark-description/`, {
+    const response = await fetch(`${API_URL}/update-bookmark-description/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

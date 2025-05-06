@@ -44,9 +44,12 @@ Before you begin, ensure you have the following installed:
     Mainly uses the fastapi and requests libraries from python.
 
 4. Run the backend server:
-    ```bash
-    fastapi dev main.py
-    ```
+```bash
+fastapi dev main.py
+
+# Run on cloud 
+fastapi dev CLI/Local_CLI/local_cli_backend/main.py   --host 0.0.0.0 --port 8000
+```
 
 5. The backend server should now be running at `http://127.0.0.1:8000`.
 
@@ -60,6 +63,10 @@ Before you begin, ensure you have the following installed:
 2. Start the frontend server:
     ```bash
     npm start
+   
+   # for ubuntu 
+   export NODE_OPTIONS=--openssl-legacy-provider
+   npm start
     ```
 
 3. Open your browser and navigate to `http://localhost:3000` to access the Local-CLI web interface.
@@ -90,3 +97,22 @@ Set up a node using the docker-compose and use the IP and port from the docker c
 OR 
 
 Use `23.239.12.151:32349` as the IP and port to connect to a hosted node.
+
+
+## Docker 
+1. To build - `docker build -f Dockerfile . -t gui`
+2. To run 
+   * Local 
+```shell
+docker run -it --rm -p 8000:8000 -p 3001:3001 -e REACT_APP_API_URL=http://127.0.0.1:8000   --name gui oshadmon/gui:test
+```
+   * Production
+```shell
+docker run -d \
+  --name gui \
+  -p 8000:8000 \
+  -p 3001:3001 \
+  -e REACT_APP_API_URL=http:/${EXTERNAL_IP}:8000 \
+  -e FRONTEND_URL=http://${EXTERNAL_IP}:3001 \
+  oshadmon/gui:test
+```
