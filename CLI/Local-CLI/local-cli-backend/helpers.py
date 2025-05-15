@@ -335,6 +335,9 @@ def make_preset_policy(conn: str, preset: Preset, group_name: str):
     # Construct the policy command for the preset
     # set policy bookmark_policy [bookmark][bookmarks][event-log] = {"type": "get", "value": "get event log"}
     policy_command = f'set policy bookmark_policy [bookmark][bookmarks][{group_name}][{name}] = {{"type": "{type.lower()}", "command": "{cmd}"}}'
+    # policy_command = f'set policy bookmark_policy [bookmark][bookmarks][{group_name}][{name}] = {{"type": "{type.lower()}", "command": "'
+    # policy_command += cmd
+    # policy_command += '"}}'
 
     # Submit the preset policy (POST)
     print(f"Submitting Preset Policy: {policy_command}")

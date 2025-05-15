@@ -283,10 +283,12 @@ def get_preset_policy():
     resp = helpers.get_preset_base_policy("45.33.110.211:32549")
     parsed = parse_response(resp)
     lb = parsed['data']['bookmark']['bookmarks']
-    print("list of bookmarks:", lb)
     filtered_lb = {key: value for key, value in lb.items() if isinstance(value, dict)}
-    
-    return {"data": filtered_lb}
+    print("list of bookmarks:", filtered_lb)
+
+    retu = {"data": filtered_lb}
+    print("ret", retu)
+    return retu
 
 
 

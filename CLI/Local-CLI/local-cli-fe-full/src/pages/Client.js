@@ -16,7 +16,6 @@ const Client = ({ node }) => {
   const [showPresets, setShowPresets] = useState(true);
 
 
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
@@ -50,7 +49,7 @@ const Client = ({ node }) => {
             ),
           })
         );
-
+        console.log('Fetched Presets:', groupsArray);
         setPresetGroups(groupsArray);
       } catch (err) {
         console.error('Failed to load presets', err);
