@@ -1,44 +1,122 @@
 /* src/styles/TopBar.css */
 .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #007bff;
-    color: #fff;
-    padding: 10px 20px;
-  }
-  
-  .topbar-left {
-    display: flex;
-    align-items: center;
-  }
-  
-  .logo {
-    height: 40px;
-    margin-right: 15px;
-  }
-  
-  .node-picker {
-    padding: 5px;
-  }
-  
-  .topbar-right .profile-btn {
-    background: #0056b3;
-    border: none;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-  }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to right, #0062cc, #007bff);
+  color: #fff;
+  padding: 10px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+}
 
-  .topbar-right a {
-    text-decoration: none;
-    color: #fff;
+.logo-container {
+  display: flex;
+  align-items: center;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  margin-right: 20px;
+}
+
+.logo {
+  height: 40px;
+  margin-right: 12px;
+}
+
+.app-name {
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+
+.nav-item {
+  margin-right: 10px;
+}
+
+/* Node picker styling */
+.node-picker {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 7px 12px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.node-picker:hover, .node-picker:focus {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Right navigation menu */
+.topbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.nav-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.nav-button.active {
+  background-color: #0056b3;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.user-icon {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .topbar {
+    flex-direction: column;
+    padding: 10px;
+  }
+  
+  .topbar-left, .topbar-right {
+    width: 100%;
+    justify-content: center;
     margin-bottom: 10px;
   }
   
-  .topbar-right a.active {
-    font-weight: bold;
+  .logo-container {
+    border-right: none;
+    margin-right: 0;
+    padding-right: 0;
+    margin-bottom: 10px;
   }
   
+  .nav-menu {
+    width: 100%;
+    justify-content: space-around;
+  }
+}

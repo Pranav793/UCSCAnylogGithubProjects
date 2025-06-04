@@ -10,6 +10,9 @@ const Policies = ({ node }) => {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [submittedPolicyId, setSubmittedPolicyId] = useState(null);
+    const [editingKey, setEditingKey] = useState(null);
+    const [editKey, setEditKey] = useState("");
+    const [editValue, setEditValue] = useState("");
 
     // Add a key-value pair to the policy dictionary
     const addKeyValuePair = () => {
@@ -24,6 +27,42 @@ const Policies = ({ node }) => {
         const updatedData = { ...policyData };
         delete updatedData[keyToRemove];
         setPolicyData(updatedData);
+    };
+
+    // Start editing a key-value pair
+    const startEditing = (key, value) => {
+        setEditingKey(key);
+        setEditKey(key);
+        setEditValue(value);
+    };
+
+    // Save edited key-value pair
+    const saveEdit = () => {
+        if (editKey.trim() === "" || editValue.trim() === "") return;
+        
+        // Create a new policy data object
+        const newPolicyData = {};
+        
+        // Copy all entries except the one being edited
+        Object.entries(policyData).forEach(([k, v]) => {
+            if (k !== editingKey) {
+                newPolicyData[k] = v;
+            }
+        });
+        
+        // Add the edited entry
+        newPolicyData[editKey] = editValue;
+        
+        // Update state
+        setPolicyData(newPolicyData);
+        cancelEdit();
+    };
+
+    // Cancel editing
+    const cancelEdit = () => {
+        setEditingKey(null);
+        setEditKey("");
+        setEditValue("");
     };
 
     const handleSubmitPolicy = async (e) => {
@@ -47,7 +86,7 @@ const Policies = ({ node }) => {
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     return (
         <div className="container">
@@ -88,10 +127,42 @@ const Policies = ({ node }) => {
             <ul className="policy-list">
                 {Object.entries(policyData).map(([k, v]) => (
                     <li key={k}>
-                        <strong>{k}:</strong> {v}{" "}
-                        <button className="remove-btn" onClick={() => removeKey(k)}>
-                            ✖
-                        </button>
+                        {editingKey === k ? (
+                            <div className="edit-group">
+                                <input
+                                    type="text"
+                                    value={editKey}
+                                    onChange={(e) => setEditKey(e.target.value)}
+                                    className="edit-input"
+                                />
+                                <input
+                                    type="text"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    className="edit-input"
+                                />
+                                <button className="save-btn" onClick={saveEdit}>
+                                    Save
+                                </button>
+                                <button className="cancel-btn" onClick={cancelEdit}>
+                                    Cancel
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <span>
+                                    <strong>{k}:</strong> {v}
+                                </span>
+                                <div className="action-buttons">
+                                    <button className="edit-btn" onClick={() => startEditing(k, v)}>
+                                        Edit
+                                    </button>
+                                    <button className="remove-btn" onClick={() => removeKey(k)}>
+                                        ✖
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </li>
                 ))}
             </ul>
@@ -122,6 +193,4 @@ const Policies = ({ node }) => {
             )}
         </div>
     );
-};
-
-export default Policies;
+};export default Policies;
