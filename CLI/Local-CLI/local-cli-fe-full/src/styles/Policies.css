@@ -1,4 +1,4 @@
-/* Container and basic layout */
+
 .container {
   max-width: 600px;
   margin: 20px auto;
@@ -8,17 +8,13 @@
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
-
-/* Heading styles */
 h2, h3 {
   color: #333;
   margin-bottom: 10px;
 }
-
-/* Policy name input */
 .policy-name-input {
   width: 100%;
-  max-width: 400px; /* Limits the input width to 400px */
+  max-width: 400px; 
   padding: 10px;
   margin-bottom: 15px;
   border: 1px solid #ccc;
@@ -29,15 +25,13 @@ h2, h3 {
 .policy-id-box {
   margin-top: 20px;
   padding: 15px;
-  background-color: #e0ffe0; /* Light green background */
-  border: 1px solid #28a745; /* Green border */
+  background-color: #e0ffe0; 
+  border: 1px solid #28a745; 
   border-radius: 4px;
   text-align: center;
   font-size: 16px;
-  color: #155724; /* Dark green text */
+  color: #155724; 
 }
-
-/* Input group for key-value pairs */
 .input-group {
   display: flex;
   gap: 10px;
@@ -65,8 +59,6 @@ h2, h3 {
 .input-group button:hover {
   background-color: #0056b3;
 }
-
-/* Policy list styling */
 .policy-list {
   list-style: none;
   padding: 0;
@@ -88,14 +80,10 @@ h2, h3 {
 .policy-list strong {
   color: #333;
 }
-
-/* Action buttons container */
 .action-buttons {
   display: flex;
   gap: 5px;
 }
-
-/* Edit button styling */
 .edit-btn {
   background-color: #ffc107;
   border: none;
@@ -109,8 +97,6 @@ h2, h3 {
 .edit-btn:hover {
   background-color: #e0a800;
 }
-
-/* Remove button for each key-value pair */
 .remove-btn {
   background-color: transparent;
   border: none;
@@ -118,8 +104,6 @@ h2, h3 {
   font-size: 16px;
   cursor: pointer;
 }
-
-/* Edit group styling */
 .edit-group {
   display: flex;
   gap: 5px;
@@ -133,8 +117,6 @@ h2, h3 {
   border-radius: 4px;
   font-size: 14px;
 }
-
-/* Save and cancel buttons */
 .save-btn {
   background-color: #28a745;
   color: white;
@@ -162,8 +144,6 @@ h2, h3 {
 .cancel-btn:hover {
   background-color: #5a6268;
 }
-
-/* JSON preview styling */
 .json-preview {
   background-color: #f8f8f8;
   border: 1px solid #ddd;
@@ -177,8 +157,6 @@ h2, h3 {
   word-wrap: break-word;
   margin-bottom: 15px;
 }
-
-/* Submit button styling */
 .submit-btn {
   display: inline-block;
   padding: 10px 20px;
