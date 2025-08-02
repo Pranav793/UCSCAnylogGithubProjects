@@ -248,10 +248,11 @@ def send_json_data(conn, dbms, table, data):
     prepped_data = prep_to_add_data(data, dbms, table)
 
     # check for existing msg client
-    check_clients = make_request(conn.conn, "GET", "get msg client where topic = new-data")
+
+    check_clients = make_request(conn, "GET", "get msg client where topic = new-data")
     if "No message client subscriptions" in check_clients:
         # create new client
-        resp = make_request(conn.conn, "POST", msg_client_cmd)
+        resp = make_request(conn, "POST", msg_client_cmd)
         print("New Client:", resp)
     else: 
         # get old client id
@@ -260,18 +261,18 @@ def send_json_data(conn, dbms, table, data):
 
         # kill old client
         kill_cmd = f'exit msg client {old_client_id}'
-        make_request(conn.conn, "POST", kill_cmd)
+        make_request(conn, "POST", kill_cmd)
 
         # create new client
-        resp = make_request(conn.conn, "POST", msg_client_cmd)
+        resp = make_request(conn, "POST", msg_client_cmd)
         print("New Client:", resp)
 
     # send data
-    response = make_request(conn=conn.conn, method="POST", command='data', topic='new-data', payload=prepped_data)
+    response = make_request(conn=conn, method="POST", command='data', topic='new-data', payload=prepped_data)
     print("Data send resp:", response)
 
     # get streaming to check if data was sent
-    response = make_request(conn.conn, "GET", "get streaming")
+    response = make_request(conn, "GET", "get streaming")
     print("Streaming:", response)
 
     return response 
@@ -360,3 +361,308 @@ def delete_preset_group_policy(conn: str, group_name:str):
     basepolicy = get_preset_base_policy(conn)
 
     return basepolicy
+
+
+# SQL QUERY GENERATOR HELPER FUNCTIONS
+
+def get_databases(conn: str) -> list:
+    """
+    Get all databases available on the AnyLog node using the data nodes command.
+    """
+    try:
+        # Use AnyLog command to get all data nodes
+        raw_response = make_request(conn, "GET", "get data nodes where format=json")
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            
+            # Extract unique databases from the data nodes
+            databases = set()
+            for node in data_nodes:
+                if node.get("DBMS") and node["DBMS"].strip():
+                    databases.add(node["DBMS"])
+            
+            # Convert to list of dictionaries
+            return [{"database_name": db, "name": db} for db in sorted(databases)]
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting databases: {e}")
+        return []
+
+
+def get_tables(conn: str, database: str) -> list:
+    """
+    Get all tables in a specific database using filtered data nodes command.
+    """
+    try:
+        # Use AnyLog command with database filter
+        raw_response = make_request(conn, "GET", f'get data nodes where format=json and dbms="{database}"')
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            
+            # Extract unique tables for the specified database
+            tables = set()
+            for node in data_nodes:
+                if node.get("Table") and node["Table"].strip():
+                    tables.add(node["Table"])
+            
+            # Convert to list of dictionaries
+            return [{"table_name": table, "name": table} for table in sorted(tables)]
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting tables: {e}")
+        return []
+
+
+def get_columns(conn: str, database: str, table: str) -> list:
+    """
+    Get all columns in a specific table using the columns command with JSON format.
+    """
+    try:
+        # Use AnyLog command to get columns with JSON format
+        raw_response = make_request(conn, "GET", f'get columns where dbms="{database}" and table="{table}" and format=json')
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            columns_data = structured_data["data"]
+            
+            # Convert the JSON object to a list of column objects
+            columns = []
+            for column_name, data_type in columns_data.items():
+                # Skip the system columns that should be ignored
+                if column_name not in ["row_id", "tsd_name", "tsd_id"]:
+                    columns.append({
+                        "column_name": column_name,
+                        "name": column_name,
+                        "data_type": data_type,
+                        "type": data_type
+                    })
+            
+            return columns
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting columns: {e}")
+        return []
+
+
+def get_data_nodes(conn: str) -> list:
+    """
+    Get all data nodes information including companies, databases, tables, and node details.
+    """
+    try:
+        # Use AnyLog command to get all data nodes
+        raw_response = make_request(conn, "GET", "get data nodes where format=json")
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            return structured_data["data"]
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting data nodes: {e}")
+        return []
+
+
+def get_companies(conn: str) -> list:
+    """
+    Get all companies available in the AnyLog network.
+    """
+    try:
+        data_nodes = get_data_nodes(conn)
+        
+        # Extract unique companies
+        companies = set()
+        for node in data_nodes:
+            if node.get("Company") and node["Company"].strip():
+                companies.add(node["Company"])
+        
+        return [{"company_name": company, "name": company} for company in sorted(companies)]
+    except Exception as e:
+        print(f"Error getting companies: {e}")
+        return []
+
+
+def get_tables_by_company(conn: str, company: str) -> list:
+    """
+    Get all tables for a specific company using filtered data nodes command.
+    """
+    try:
+        # Use AnyLog command with company filter
+        raw_response = make_request(conn, "GET", f'get data nodes where format=json and company="{company}"')
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            
+            # Extract tables for the specified company
+            tables = []
+            for node in data_nodes:
+                if (node.get("DBMS") and 
+                    node.get("Table") and 
+                    node["DBMS"].strip() and 
+                    node["Table"].strip()):
+                    tables.append({
+                        "company": node["Company"],
+                        "database": node["DBMS"],
+                        "table": node["Table"],
+                        "node_name": node.get("Node Name", ""),
+                        "cluster_id": node.get("Cluster ID", ""),
+                        "external_ip_port": node.get("External IP/Port", "")
+                    })
+            
+            return tables
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting tables by company: {e}")
+        return []
+
+
+def get_tables_by_company_and_dbms(conn: str, company: str, dbms: str) -> list:
+    """
+    Get all tables for a specific company and database using filtered data nodes command.
+    """
+    try:
+        # Use AnyLog command with company and database filter
+        raw_response = make_request(conn, "GET", f'get data nodes where format=json and company="{company}" and dbms="{dbms}"')
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            
+            # Extract tables for the specified company and database
+            tables = []
+            for node in data_nodes:
+                if node.get("Table") and node["Table"].strip():
+                    tables.append({
+                        "company": node["Company"],
+                        "database": node["DBMS"],
+                        "table": node["Table"],
+                        "node_name": node.get("Node Name", ""),
+                        "cluster_id": node.get("Cluster ID", ""),
+                        "external_ip_port": node.get("External IP/Port", "")
+                    })
+            
+            return tables
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting tables by company and database: {e}")
+        return []
+
+
+def get_nodes_by_company(conn: str, company: str) -> list:
+    """
+    Get all nodes for a specific company using filtered data nodes command.
+    """
+    try:
+        # Use AnyLog command with company filter
+        raw_response = make_request(conn, "GET", f'get data nodes where format=json and company="{company}"')
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            
+            # Extract unique nodes for the specified company
+            nodes = set()
+            for node in data_nodes:
+                if node.get("Node Name") and node["Node Name"].strip():
+                    nodes.add(node["Node Name"])
+            
+            return [{"node_name": node, "name": node} for node in sorted(nodes)]
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting nodes by company: {e}")
+        return []
+
+
+def get_databases_by_company(conn: str, company: str) -> list:
+    """
+    Get all databases for a specific company using filtered data nodes command.
+    """
+    try:
+        # Use AnyLog command with company filter
+        raw_response = make_request(conn, "GET", f'get data nodes where format=json and company="{company}"')
+        structured_data = parse_response(raw_response)
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            
+            # Extract unique databases for the specified company
+            databases = set()
+            for node in data_nodes:
+                if node.get("DBMS") and node["DBMS"].strip():
+                    databases.add(node["DBMS"])
+            
+            return [{"database_name": db, "name": db} for db in sorted(databases)]
+        else:
+            return []
+    except Exception as e:
+        print(f"Error getting databases by company: {e}")
+        return []
+
+
+def get_table_info_with_columns(conn: str, database: str, table: str) -> dict:
+    """
+    Get comprehensive table information including columns and metadata.
+    """
+    try:
+        # Get columns for the table
+        columns = get_columns(conn, database, table)
+        
+        # Get table metadata from data nodes
+        raw_response = make_request(conn, "GET", f'get data nodes where format=json and dbms="{database}" and table="{table}"')
+        structured_data = parse_response(raw_response)
+        
+        table_info = {
+            "database": database,
+            "table": table,
+            "columns": columns,
+            "column_count": len(columns),
+            "metadata": {}
+        }
+        
+        if structured_data.get("type") == "json" and structured_data.get("data"):
+            data_nodes = structured_data["data"]
+            if data_nodes:
+                # Use the first node's metadata
+                node = data_nodes[0]
+                table_info["metadata"] = {
+                    "company": node.get("Company", ""),
+                    "node_name": node.get("Node Name", ""),
+                    "cluster_id": node.get("Cluster ID", ""),
+                    "external_ip_port": node.get("External IP/Port", ""),
+                    "cluster_status": node.get("Cluster Status", ""),
+                    "node_status": node.get("Node Status", "")
+                }
+        
+        return table_info
+    except Exception as e:
+        print(f"Error getting table info with columns: {e}")
+        return {
+            "database": database,
+            "table": table,
+            "columns": [],
+            "column_count": 0,
+            "metadata": {}
+        }
+
+
+def execute_sql_query(conn: str, query: str) -> str:
+    """
+    Execute a SQL query on the AnyLog node.
+    """
+    try:
+        # Use AnyLog SQL command to execute the query
+        raw_response = make_request(conn, "GET", f"sql {query}")
+        return raw_response
+    except Exception as e:
+        print(f"Error executing SQL query: {e}")
+        raise e

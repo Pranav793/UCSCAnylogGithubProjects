@@ -15,6 +15,7 @@ from parsers import parse_response
 from classes import *
 import auth
 from auth import supabase_signup, supabase_get_user, supabase_login, supabase_logout, supabase_bookmark_node, supabase_get_bookmarked_nodes, supabase_delete_bookmarked_node, supabase_update_bookmark_description
+from sql_router import sql_router
 
 # from helpers import make_request, grab_network_nodes, monitor_network, make_policy, send_json_data
 import os
@@ -28,13 +29,16 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', '*')
 # Allow CORS (React frontend -> FastAPI backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],  # Change this to your React app's URL for security
+    allow_origins=[FRONTEND_URL, "*"],  # Change this to your React app's URL for security
     allow_credentials=True,
     allow_methods=["*"],  # Allows GET, POST, PUT, DELETE, etc.
     allow_headers=["*"],  # Allows all headers
 )
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Include SQL router
+app.include_router(sql_router)
 # 23.239.12.151:32349
 # run client () sql edgex extend=(+node_name, @ip, @port, @dbms_name, @table_name) and format = json and timezone=Europe/Dublin  select  timestamp, file, class, bbox, status  from factory_imgs where timestamp >= now() - 1 hour and timestamp <= NOW() order by timestamp desc --> selection (columns: ip using ip and port using port and dbms using dbms_name and table using table_name and file using file) -->  description (columns: bbox as shape.rect)
 
@@ -211,11 +215,11 @@ def add_preset_group(token: AccessToken, group: PresetGroup):
 
     resp = auth.supabase_add_preset_group(user_id, group.group_name)
 
-    r2 = helpers.make_preset_group_policy("45.33.110.211:32549", group.group_name)
-    parsed = parse_response(r2)
-    print("parsed from group policy:", parsed)
+    # r2 = helpers.make_preset_group_policy("23.239.12.151:32349", group.group_name)
+    # parsed = parse_response(r2)
+    # print("parsed from group policy:", parsed)
 
-    print("presetgroup response:", resp)
+    # print("presetgroup response:", resp)
 
     return {"data": resp}
 
@@ -248,12 +252,12 @@ def add_preset_to_group(token: AccessToken, preset: Preset):
     user_id = user.user.id
 
     resp = auth.supabase_add_preset_to_group(user_id, preset.group_id, preset.command, preset.type, preset.button)
-    resp2 = make_preset_policy("45.33.110.211:32549", preset, preset.group_name)
+    # resp2 = make_preset_policy("23.239.12.151:32349", preset, preset.group_name)
 
-    parsed = parse_response(resp2)
-    print("parsed:", parsed['data']['bookmark'])
+    # parsed = parse_response(resp2)
+    # print("parsed:", parsed['data']['bookmark'])
 
-    # print("preset other response:", resp)
+    print("preset other response:", resp)
 
     return {"data": resp}
 
@@ -270,7 +274,7 @@ def get_presets(token: AccessToken, group_id: PresetGroupID):
     print("User ID:", user_id)
 
     resp = auth.supabase_get_presets_by_group(user_id, group_id.group_id)
-    print("Presets response:", resp)
+    print("Presets response to get by group:", resp)
 
     return {"data": resp.data}
 
@@ -293,10 +297,10 @@ def delete_preset_group(token: AccessToken, group_id: PresetGroupID, group: Pres
 
     resp = auth.supabase_delete_preset_group(user_id, group_id.group_id)
 
-    r2 = helpers.delete_preset_group_policy("45.33.110.211:32549", group.group_name)
-    parsed = parse_response(r2)
-    print("parsed from group policy:", parsed)
-    print("presetgroupdelete response:", resp)
+    # r2 = helpers.delete_preset_group_policy("23.239.12.151:32349", group.group_name)
+    # parsed = parse_response(r2)
+    # print("parsed from group policy:", parsed)
+    # print("presetgroupdelete response:", resp)
 
     return {"data": resp}
 
@@ -306,15 +310,13 @@ def get_preset_policy():
     Get all presets for a specific group for the authenticated user.
     """
 
-    resp = helpers.get_preset_base_policy("45.33.110.211:32549")
+    resp = helpers.get_preset_base_policy("23.239.12.151:32349")
     parsed = parse_response(resp)
     lb = parsed['data']['bookmark']['bookmarks']
     print("list of bookmarks:", lb)
     filtered_lb = {key: value for key, value in lb.items() if isinstance(value, dict)}
     
     return {"data": filtered_lb}
-
-
 
 
 

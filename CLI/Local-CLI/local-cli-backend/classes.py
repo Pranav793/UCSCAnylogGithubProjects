@@ -50,3 +50,17 @@ class Preset(BaseModel):
     type: str  # "GET" or "POST"
     button: str
 
+class DatabaseInfo(BaseModel):
+    database: str
+
+class TableInfo(BaseModel):
+    database: str
+    table: str
+
+class ColumnInfo(BaseModel):
+    database: str
+    table: str
+
+class SqlQuery(BaseModel):
+    query: str
+

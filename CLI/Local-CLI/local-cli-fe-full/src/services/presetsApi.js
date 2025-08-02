@@ -1,7 +1,7 @@
 
 export async function addPresetGroup({ jwt, name }) {
   if (!jwt || !name) {
-    alert('Missing required fields');
+    alert('Missing required fields Preset Group');
     return;
   }
 
@@ -40,7 +40,7 @@ export async function addPresetGroup({ jwt, name }) {
 
 export async function getPresetGroups({ jwt }) {
   if (!jwt) {
-    alert('Missing required fields');
+    alert('Missing required fields Get Preset Groups');
     return;
   }
 
@@ -119,7 +119,7 @@ export async function addPreset({ jwt, preset }) {
 
 export async function getPresetsByGroup({ jwt, groupId }) {
   if (!jwt) {
-    alert('Missing required fields');
+    alert('Missing required fields get presets by group');
     return;
   }
 

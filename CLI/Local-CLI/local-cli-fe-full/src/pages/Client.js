@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable'; // Adjust path as needed
 import BlobsTable from '../components/BlobsTable'; // Adjust path as needed
-import { sendCommand, viewBlobs, getBasePresetPolicy } from '../services/api'; // Adjust path as needed
+import { sendCommand, viewBlobs, getBasePresetPolicy, getPresetGroups, getPresetsByGroup } from '../services/api'; // Adjust path as needed
 import '../styles/Client.css'; // Optional: create client-specific CSS
 import { useEffect } from 'react';
+import { set } from 'mongoose';
 
 const Client = ({ node }) => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   // Since the node is provided as a prop, we no longer need a "Connect info" field.
   const [authUser, setAuthUser] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -31,24 +32,55 @@ const Client = ({ node }) => {
   useEffect(() => {
     (async () => {
       try {
-        const groups = await getBasePresetPolicy();
-        const rawGroups = groups.data;
-        const groupsArray = Object.entries(rawGroups).map(
-          ([groupName, presetsObj]) => ({
+        const jwt = localStorage.getItem("accessToken");
+        const check1 = await getPresetGroups({ jwt });
+        // console.log('Preset groups check:', check1);
+        // For each group in check1.data, fetch its presets
+        const groupPresets = [];
+        for (const group of check1.data) {
+          // console.log('Processing group:', group);
+          const id = group.id;
+          const presets = await getPresetsByGroup({
+            groupId: id,
+            jwt
+          });
+          // console.log(`Presets for group ${group.group_name}:`, presets);
+
+          const groupName = group.group_name;
+          const obj = {
             id: groupName,
             name: groupName,
-            presets: Object.entries(presetsObj).map(
-              ([presetName, { type, command }]) => ({
-                id: presetName,
-                buttonName: presetName,
-                type: type.toUpperCase(),
-                command,
-              })
-            ),
-          })
-        );
+            presets: presets.data.map(p => ({
+              id: p.button,
+              buttonName: p.button || p.name, // fallback to name if button_name is missing
+              type: p.type.toUpperCase(),
+              command: p.command
+            }))
+          };
+          groupPresets.push(obj);
+        }
+        console.log('Presets by group:', groupPresets);
 
-        setPresetGroups(groupsArray);
+        setPresetGroups(groupPresets);
+
+        
+        // const groups = await getBasePresetPolicy();
+        // const rawGroups = groups.data;
+        // const groupsArray = Object.entries(rawGroups).map(
+        //   ([groupName, presetsObj]) => ({
+        //     id: groupName,
+        //     name: groupName,
+        //     presets: Object.entries(presetsObj).map(
+        //       ([presetName, { type, command }]) => ({
+        //         id: presetName,
+        //         buttonName: presetName,
+        //         type: type.toUpperCase(),
+        //         command,
+        //       })
+        //     ),
+        //   })
+        // );
+        // setPresetGroups(groupsArray);
       } catch (err) {
         console.error('Failed to load presets', err);
       }
@@ -121,7 +153,7 @@ const Client = ({ node }) => {
       });
 
       console.log('Result:', result);
-    // // Reuse your existing state machinery to display the new result
+      // // Reuse your existing state machinery to display the new result
       // setResultType(result.type);
       // setResponseData(result.type === 'table' || result.type === 'blobs'
       //   ? result.data
@@ -134,16 +166,25 @@ const Client = ({ node }) => {
       setError(err.message);
     } finally {
       setLoading(false);
-      navigate('/dashboard/viewfiles', {state: { blobs: selectedBlobs } });
+      navigate('/dashboard/viewfiles', { state: { blobs: selectedBlobs } });
     }
   };
 
   return (
     <div className="client-container">
       <h2>Client Dashboard</h2>
-      <p>
-        <strong>Connected Node:</strong> {node}
-      </p>
+      
+      {!node ? (
+        <div className="no-node-message">
+          <h3>No Node Selected</h3>
+          <p>Please select a node from the dropdown in the top bar to connect to an AnyLog instance.</p>
+          <p>You can add a new node by entering an IP:Port (e.g., "192.168.1.100:32349") in the input field and clicking "Use".</p>
+        </div>
+      ) : (
+        <>
+          <p>
+            <strong>Connected Node:</strong> {node}
+          </p>
 
       <button
         type="button"
@@ -155,7 +196,7 @@ const Client = ({ node }) => {
       >
         {showPresets ? 'Hide Presets' : 'Show Presets'}
       </button>
-      
+
       {/* PRESETS PANEL */}
       {showPresets && presetGroups.length > 0 && (
         <div className="presets-panel">
@@ -181,35 +222,7 @@ const Client = ({ node }) => {
         </div>
       )}
 
-      {showEmptyButtons && (
-        <div className="preset-buttons" style={{ marginTop: '1rem' }}>
-          {[
-            { label: 'Node Status', command: 'get status' },
-            { label: 'Get Processes', command: 'get processes' },
-            { label: 'Get Dictionary', command: 'get dictionary' },
-            { label: 'Disk Usage', command: 'get disk usage .' },
-            { label: 'Disk Counters', command: 'get node info disk_io_counters' },
-            { label: 'CPU Usage', command: 'get cpu usage' },
-            { label: 'Platform Info', command: 'get platform info' },
-            { label: 'Memory Info', command: 'get memory info' },
-            { label: 'Network Info', command: 'get node info net_io_counters' },
-            { label: 'Swap Memory', command: 'get node info swap_memory' },
-            { label: 'Members List', command: 'blockchain get (operator, publisher, query) bring.table [*][name] [*][country] [*][city] [*][ip] [*][port]' },
-            { label: 'USA Members', command: 'blockchain get (operator, publisher, query) where [country] contains US bring.table [*][name] [*][country] [*][city] [*][ip] [*][port]' },
-            { label: 'Target USA', command: 'blockchain get (operator, publisher, query) where [country] contains US  bring [*][ip] : [*][port]  separator = ,' },
-            { label: 'AFG Operators', command: 'blockchain get operator where [company] contains AFG bring.table [*][name] [*][country] [*][city] [*][ip] [*][port]' },
-            { label: 'Target AFG', command: 'blockchain get operator where [company] contains AFG bring [operator][ip] : [operator][port]  separator = ,' },
-          ].map(({ label, command }, index) => (
-            <button
-              key={index}
-              className="preset-button"
-              onClick={() => setCommand(command)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+
 
 
       <form onSubmit={handleSubmit} className="client-form">
@@ -314,6 +327,8 @@ const Client = ({ node }) => {
             <pre>{responseData}</pre>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

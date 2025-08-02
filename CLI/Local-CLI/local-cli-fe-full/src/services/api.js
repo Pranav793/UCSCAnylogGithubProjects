@@ -116,7 +116,6 @@ export async function monitor({ node }) {
   }
 }
 
-
 export async function submitPolicy({ connectInfo, policy }) {
   if (!connectInfo || !policy) {
     alert('Missing required fields');
@@ -124,36 +123,30 @@ export async function submitPolicy({ connectInfo, policy }) {
   }
 
   try {
+    const requestBody = {
+      policy: policy,
+      conn: { conn: connectInfo },
+    };
 
-    const requestBody = { conn: { conn: connectInfo }, policy: policy };
-
-    const response = await fetch(`${API_URL}/submit-policy/`, {
+    const response = await fetch(`${API_URL}/submit-policy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Possibly include auth headers or other tokens here
       },
       body: JSON.stringify(requestBody),
     });
 
-    console.log("Response: ", response);
-
     if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status},  ${response}`);
+      throw new Error(`Server responded with status ${response.status}`);
     }
 
-    // Parse JSON response
-    const respData = await response.json();
-    return respData;
+    const data = await response.json();
+    return data;
   } catch (error) {
-    // Optionally handle errors
-    console.error('Error getting nodes:', error);
-    throw error; // re-throw so the component knows there was an error
+    console.error('Error submitting policy:', error);
+    throw error;
   }
 }
-
-
-
 
 export async function addData({ connectInfo, db, table, data }) {
   if (!connectInfo || !db || !table || !data) {
@@ -162,36 +155,32 @@ export async function addData({ connectInfo, db, table, data }) {
   }
 
   try {
+    const requestBody = {
+      db: db,
+      table: table,
+      data: data,
+      conn: { conn: connectInfo },
+    };
 
-    const requestBody = { conn: { conn: connectInfo }, dbconn: { dbms: db, table: table }, data: data };
-
-    const response = await fetch(`${API_URL}/add-data/`, {
+    const response = await fetch(`${API_URL}/add-data`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Possibly include auth headers or other tokens here
       },
       body: JSON.stringify(requestBody),
     });
 
-    console.log("Response: ", response);
-
     if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status},  ${response}`);
+      throw new Error(`Server responded with status ${response.status}`);
     }
 
-    // Parse JSON response
-    const respData = await response.json();
-    return respData;
+    const responseData = await response.json();
+    return responseData;
   } catch (error) {
-    // Optionally handle errors
-    console.error('Error getting nodes:', error);
-    throw error; // re-throw so the component knows there was an error
+    console.error('Error adding data:', error);
+    throw error;
   }
 }
-
-
-
 
 export async function bookmarkNode({ jwt, node }) {
   if (!jwt || !node) {
@@ -199,38 +188,31 @@ export async function bookmarkNode({ jwt, node }) {
     return;
   }
 
-  console.log("bookmarkNode called with jwt:", jwt, "and node:", node);
-
   try {
+    const requestBody = {
+      node: node,
+      jwt: jwt,
+    };
 
-    const requestBody = { conn: { conn: node }, token: { jwt: jwt } };
-
-    const response = await fetch(`${API_URL}/bookmark-node/`, {
+    const response = await fetch(`${API_URL}/bookmark-node`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Possibly include auth headers or other tokens here
       },
       body: JSON.stringify(requestBody),
     });
 
-    console.log("Response: ", response);
-
     if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status},  ${response}`);
+      throw new Error(`Server responded with status ${response.status}`);
     }
 
-    // Parse JSON response
-    const respData = await response.json();
-    return respData;
+    const data = await response.json();
+    return data;
   } catch (error) {
-    // Optionally handle errors
-    console.error('Error getting nodes:', error);
-    throw error; // re-throw so the component knows there was an error
+    console.error('Error bookmarking node:', error);
+    throw error;
   }
 }
-
-
 
 export async function getBookmarks({ jwt }) {
   if (!jwt) {
@@ -238,42 +220,30 @@ export async function getBookmarks({ jwt }) {
     return;
   }
 
-
-  console.log("getBookmarks called with jwt:", jwt);
-
-
   try {
+    const requestBody = {
+      jwt: jwt,
+    };
 
-    const requestBody = { jwt: jwt } ;
-
-    const response = await fetch(`${API_URL}/get-bookmarked-nodes/`, {
+    const response = await fetch(`${API_URL}/get-bookmarks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Possibly include auth headers or other tokens here
       },
       body: JSON.stringify(requestBody),
     });
 
-    console.log("Response: ", response);
-
     if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status},  ${response}`);
+      throw new Error(`Server responded with status ${response.status}`);
     }
 
-    // Parse JSON response
-    const respData = await response.json();
-    return respData;
+    const data = await response.json();
+    return data;
   } catch (error) {
-    // Optionally handle errors
-    console.error('Error getting nodes:', error);
-    throw error; // re-throw so the component knows there was an error
+    console.error('Error getting bookmarks:', error);
+    throw error;
   }
 }
-
-
-
-
 
 export async function viewBlobs({ connectInfo, blobs }) {
   if (!connectInfo || !blobs) {
@@ -282,34 +252,30 @@ export async function viewBlobs({ connectInfo, blobs }) {
   }
 
   try {
-    const requestBody = { conn: { conn: connectInfo }, blobs: blobs };
+    const requestBody = {
+      blobs: blobs,
+      conn: { conn: connectInfo },
+    };
 
-    const response = await fetch(`${API_URL}/view-blobs/`, {
+    const response = await fetch(`${API_URL}/view-blobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Possibly include auth headers or other tokens here
       },
       body: JSON.stringify(requestBody),
     });
 
-    console.log("Response: ", response);
-
     if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status},  ${response}`);
+      throw new Error(`Server responded with status ${response.status}`);
     }
 
-    // Parse JSON response
-    const respData = await response.json();
-    return respData;
+    const data = await response.json();
+    return data;
   } catch (error) {
-    // Optionally handle errors
-    console.error('Error getting nodes:', error);
-    throw error; // re-throw so the component knows there was an error
+    console.error('Error viewing blobs:', error);
+    throw error;
   }
 }
-
-
 
 export async function deleteBookmarkedNode({ jwt, node }) {
   if (!jwt || !node) {
@@ -317,15 +283,13 @@ export async function deleteBookmarkedNode({ jwt, node }) {
     return;
   }
 
-  console.log("deleteBookmarkedNode called with jwt:", jwt, "and node:", node);
-
   try {
     const requestBody = {
-      conn: { conn: node },
-      token: { jwt: jwt },
+      node: node,
+      jwt: jwt,
     };
 
-    const response = await fetch(`${API_URL}/delete-bookmarked-node/`, {
+    const response = await fetch(`${API_URL}/delete-bookmarked-node`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -337,8 +301,8 @@ export async function deleteBookmarkedNode({ jwt, node }) {
       throw new Error(`Server responded with status ${response.status}`);
     }
 
-    const respData = await response.json();
-    return respData;
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error deleting bookmarked node:', error);
     throw error;
@@ -346,21 +310,19 @@ export async function deleteBookmarkedNode({ jwt, node }) {
 }
 
 export async function updateBookmarkDescription({ jwt, node, description }) {
-  if (!jwt || !node) {
+  if (!jwt || !node || !description) {
     alert('Missing required fields');
     return;
   }
 
-  console.log("updateBookmarkDescription called with:", { jwt, node, description });
-
   try {
     const requestBody = {
-      token: { jwt },
-      node,
-      description,
+      node: node,
+      description: description,
+      jwt: jwt,
     };
 
-    const response = await fetch(`${API_URL}/update-bookmark-description/`, {
+    const response = await fetch(`${API_URL}/update-bookmark-description`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -372,13 +334,107 @@ export async function updateBookmarkDescription({ jwt, node, description }) {
       throw new Error(`Server responded with status ${response.status}`);
     }
 
-    const respData = await response.json();
-    return respData;
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error('Error updating description:', error);
+    console.error('Error updating bookmark description:', error);
     throw error;
   }
 }
 
+// SQL Query Generator API functions
+export async function getDatabases({ connectInfo }) {
+  if (!connectInfo) {
+    alert('Missing connection info');
+    return;
+  }
+
+  try {
+    const requestBody = { conn: { conn: connectInfo } };
+
+    const response = await fetch(`${API_URL}/sql/get-databases/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error getting databases:', error);
+    throw error;
+  }
+}
+
+export async function getTables({ connectInfo, database }) {
+  if (!connectInfo || !database) {
+    alert('Missing required fields');
+    return;
+  }
+
+  try {
+    const requestBody = { 
+      conn: { conn: connectInfo },
+      database: database
+    };
+
+    const response = await fetch(`${API_URL}/sql/get-tables/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error getting tables:', error);
+    throw error;
+  }
+}
+
+export async function getColumns({ connectInfo, database, table }) {
+  if (!connectInfo || !database || !table) {
+    alert('Missing required fields');
+    return;
+  }
+
+  try {
+    const requestBody = { 
+      conn: { conn: connectInfo },
+      database: database,
+      table: table
+    };
+
+    const response = await fetch(`${API_URL}/sql/get-columns/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error getting columns:', error);
+    throw error;
+  }
+}
 
 export * from './presetsApi';

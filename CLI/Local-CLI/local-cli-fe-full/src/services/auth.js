@@ -4,7 +4,7 @@
 // Example: "sendCommand" function that POSTs a command to your server
 export async function signup({ email, password, firstName, lastName }) {
     if (!email || !password || !firstName || !lastName) {
-        alert('Missing required fields');
+        alert('Missing required fields BITCHHHHH');
         return;
     }
 
@@ -181,19 +181,19 @@ export async function getUser() {
 
 export function isLoggedIn() {
     // Check if the token is present in localStorage
-    // console.log("Access Token: ", localStorage.getItem('accessToken'));
+//     console.log("Access Token: ", localStorage.getItem('accessToken'));
 
-    // console.log("Expiry time:", localStorage.getItem('expiresAt'));
+//     console.log("Expiry time:", localStorage.getItem('expiresAt'));
 
 //    const expiresAt = localStorage.getItem('expiresAt');
 //    const now = Date.now()/1000;
 //    const expired = now >= expiresAt;
-//
-//
+
+
 //    console.log("Current time:", now);
 //    console.log("Expires at time:", expiresAt);
 //    console.log("Is token expired?", expired);
-//
+
 //    if (expired) {
 //        console.log("Token has expired");
 //        localStorage.removeItem('accessToken');
@@ -201,7 +201,7 @@ export function isLoggedIn() {
 //        localStorage.removeItem('expiresAt');
 //        return false;
 //    }
-//
-    // return !!localStorage.getItem('authToken');
+
+//     return !!localStorage.getItem('accessToken');
     return true; // For testing purposes, always return true
   }
