@@ -120,13 +120,18 @@ const Client = ({ node }) => {
       } else if (result.type === 'blobs') {
         setResponseData(result.data);
         setSelectedBlobs([]); // clear any previous selection
-      } else {
+      } else if (result.type === 'json') {
         setResponseData(
           `Command "${command}" was sent to ${node}.\n\n\n${JSON.stringify(
             result.data,
             null,
             2
           )}`
+        );
+      } else {
+        // For string responses, display the data directly without JSON.stringify
+        setResponseData(
+          `Command "${command}" was sent to ${node}.\n\n\n${result.data}`
         );
       }
     } catch (err) {

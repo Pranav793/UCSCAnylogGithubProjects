@@ -161,6 +161,7 @@ def parse_response(raw: str) -> dict:
     Checks if the response is JSON, table formatted, or a simple string,
     and returns a standardized JSON structure.
     """
+    
 
     # Check if text resembles a table (e.g., has headers and delimiters)
 
@@ -193,8 +194,14 @@ def parse_response(raw: str) -> dict:
     # if parsed:
     #     return {"type": "json", "data": parsed}
     
+    if isinstance(raw, str):
+        # Replace \r\n with \n and normalize line endings
+        raw = raw.replace('\r\n', '\n').replace('\r', '\n')
+        # Remove leading/trailing whitespace
+        raw = raw.strip()
+        
     # Otherwise, treat it as a simple message
-    return {"type": "string", "data": raw.strip()}
+    return {"type": "string", "data": raw}
 
 
 

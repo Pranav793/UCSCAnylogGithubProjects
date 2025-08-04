@@ -164,6 +164,64 @@
   gap: 15px;
 }
 
+/* Increments Panel */
+.increments-panel {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.increments-panel h3 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 16px;
+}
+
+.increments-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.increments-config {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.increments-info {
+  grid-column: 1 / -1;
+  padding: 10px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+}
+
+.increments-info p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #1976d2;
+}
+
+.increments-info code {
+  background-color: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #e83e8c;
+  font-weight: bold;
+}
+
+.increments-info em {
+  color: #666;
+  font-style: italic;
+}
+
 /* Advanced Panel */
 .advanced-panel {
   background: white;
@@ -473,6 +531,10 @@
   .column-actions {
     flex-direction: column;
     gap: 5px;
+  }
+  
+  .increments-config {
+    grid-template-columns: 1fr;
   }
   
   .aggregation-item,

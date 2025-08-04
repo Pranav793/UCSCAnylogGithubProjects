@@ -22,6 +22,12 @@ const SqlQueryGenerator = ({ node }) => {
   const [distinct, setDistinct] = useState(false);
   const [aggregations, setAggregations] = useState([]);
   const [joins, setJoins] = useState([]);
+  
+  // Increments function state
+  const [useIncrements, setUseIncrements] = useState(false);
+  const [incrementsUnit, setIncrementsUnit] = useState('minute');
+  const [incrementsInterval, setIncrementsInterval] = useState(1);
+  const [incrementsDateColumn, setIncrementsDateColumn] = useState('');
 
   // Fetch databases on component mount
   useEffect(() => {
@@ -53,7 +59,7 @@ const SqlQueryGenerator = ({ node }) => {
   // Update query when selections change
   useEffect(() => {
     buildQuery();
-  }, [selectedColumns, whereClause, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins]);
+  }, [selectedColumns, whereClause, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn]);
 
   const fetchDatabases = async () => {
     setLoading(true);
@@ -127,8 +133,14 @@ const SqlQueryGenerator = ({ node }) => {
       anylogQuery += 'DISTINCT ';
     }
     
+    // Add increments function if enabled
+    let selectClause = '';
+    if (useIncrements && incrementsDateColumn) {
+      selectClause += `increments(${incrementsDateColumn}, ${incrementsInterval}, ${incrementsUnit}), `;
+    }
+    
     // Add selected columns with aggregations
-    let selectClause = selectedColumns.map(col => {
+    selectClause += selectedColumns.map(col => {
       const agg = aggregations.find(a => a.column === col);
       if (agg) {
         return `${agg.function}(${col}) as ${agg.alias || col}`;
@@ -202,8 +214,10 @@ const SqlQueryGenerator = ({ node }) => {
   };
 
   const clearQuery = () => {
-    setQuery('');
+    setSelectedDatabase('');
+    setSelectedTable('');
     setSelectedColumns([]);
+    setQuery('');
     setWhereClause('');
     setGroupBy('');
     setOrderBy('');
@@ -213,7 +227,10 @@ const SqlQueryGenerator = ({ node }) => {
     setDistinct(false);
     setAggregations([]);
     setJoins([]);
-    setError(null);
+    setUseIncrements(false);
+    setIncrementsUnit('minute');
+    setIncrementsInterval(1);
+    setIncrementsDateColumn('');
   };
 
   const addAggregation = () => {
@@ -369,6 +386,77 @@ const SqlQueryGenerator = ({ node }) => {
                 DISTINCT
               </label>
             </div> */}
+          </div>
+        </div>
+
+        {/* Time-Series Increments Function */}
+        <div className="increments-panel">
+          <h3>Time-Series Analysis</h3>
+          <div className="increments-controls">
+            <div className="option-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={useIncrements}
+                  onChange={(e) => setUseIncrements(e.target.checked)}
+                />
+                Use Increments Function
+              </label>
+            </div>
+            
+            {useIncrements && (
+              <div className="increments-config">
+                <div className="option-group">
+                  <label>Date/Time Column:</label>
+                  <select 
+                    value={incrementsDateColumn} 
+                    onChange={(e) => setIncrementsDateColumn(e.target.value)}
+                    disabled={!selectedTable}
+                  >
+                    <option value="">Select Date Column</option>
+                    {columns
+                      .filter(col => {
+                        const type = (col.data_type || col.type || '').toLowerCase();
+                        return type.includes('date') || type.includes('time') || type.includes('timestamp');
+                      })
+                      .map((col, index) => (
+                        <option key={index} value={col.column_name || col.name}>
+                          {col.column_name || col.name} ({col.data_type || col.type})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                
+                <div className="option-group">
+                  <label>Time Unit:</label>
+                  <select value={incrementsUnit} onChange={(e) => setIncrementsUnit(e.target.value)}>
+                    <option value="second">Second</option>
+                    <option value="minute">Minute</option>
+                    <option value="hour">Hour</option>
+                    <option value="day">Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                    <option value="year">Year</option>
+                  </select>
+                </div>
+                
+                <div className="option-group">
+                  <label>Interval:</label>
+                  <input
+                    type="number"
+                    value={incrementsInterval}
+                    onChange={(e) => setIncrementsInterval(parseInt(e.target.value) || 1)}
+                    placeholder="e.g., 5"
+                    min="1"
+                  />
+                </div>
+                
+                <div className="increments-info">
+                  <p><strong>Function:</strong> <code>increments({incrementsDateColumn || 'date_column'}, {incrementsInterval}, {incrementsUnit})</code></p>
+                  <p><em>Creates time buckets for time-series analysis. Example: increments(timestamp, 10, minute) creates 10-minute intervals.</em></p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
