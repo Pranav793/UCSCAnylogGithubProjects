@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable'; // Adjust path as needed
 import BlobsTable from '../components/BlobsTable'; // Adjust path as needed
-import { sendCommand, viewBlobs, getBasePresetPolicy, getPresetGroups, getPresetsByGroup } from '../services/api'; // Adjust path as needed
+import { sendCommand, viewBlobs, getBasePresetPolicy } from '../services/api'; // Adjust path as needed
+import { getPresetGroups, getPresetsByGroup } from '../services/file_auth';
 import '../styles/Client.css'; // Optional: create client-specific CSS
 import { useEffect } from 'react';
 import { set } from 'mongoose';
@@ -32,8 +33,7 @@ const Client = ({ node }) => {
   useEffect(() => {
     (async () => {
       try {
-        const jwt = localStorage.getItem("accessToken");
-        const check1 = await getPresetGroups({ jwt });
+        const check1 = await getPresetGroups();
         // console.log('Preset groups check:', check1);
         // For each group in check1.data, fetch its presets
         const groupPresets = [];
@@ -41,8 +41,7 @@ const Client = ({ node }) => {
           // console.log('Processing group:', group);
           const id = group.id;
           const presets = await getPresetsByGroup({
-            groupId: id,
-            jwt
+            groupId: id
           });
           // console.log(`Presets for group ${group.group_name}:`, presets);
 

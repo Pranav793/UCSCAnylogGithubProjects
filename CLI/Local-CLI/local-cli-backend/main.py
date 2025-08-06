@@ -13,9 +13,8 @@ from typing import Dict
 
 from parsers import parse_response
 from classes import *
-import auth
-from auth import supabase_signup, supabase_get_user, supabase_login, supabase_logout, supabase_bookmark_node, supabase_get_bookmarked_nodes, supabase_delete_bookmarked_node, supabase_update_bookmark_description
 from sql_router import sql_router
+from file_auth_router import file_auth_router
 
 # from helpers import make_request, grab_network_nodes, monitor_network, make_policy, send_json_data
 import os
@@ -37,8 +36,9 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Include SQL router
+# Include routers
 app.include_router(sql_router)
+app.include_router(file_auth_router)
 # 23.239.12.151:32349
 # run client () sql edgex extend=(+node_name, @ip, @port, @dbms_name, @table_name) and format = json and timezone=Europe/Dublin  select  timestamp, file, class, bbox, status  from factory_imgs where timestamp >= now() - 1 hour and timestamp <= NOW() order by timestamp desc --> selection (columns: ip using ip and port using port and dbms using dbms_name and table using table_name and file using file) -->  description (columns: bbox as shape.rect)
 
@@ -64,35 +64,7 @@ def get_status():
     # user = supabase_get_user()
     # return {"data": user}
 
-# AUTHENTICATION USING SUPABASE
-
-@app.post("/signup/")
-def signup(info: UserSignupInfo):
-    print("info", info)
-    response = supabase_signup(info.email, info.password, info.firstname, info.lastname)
-
-    print("Resp:", response)
-    # print("GET USER", supabase_get_user())
-    return {"data": response}
-
-@app.post("/get-user/")
-def get_user(token: AccessToken):
-    print("getuser token", token)
-    user = supabase_get_user(token.jwt)
-    # print("token", token.jwt)
-    # user = supabase_refresh_session()
-    return {"data": user}
-
-@app.post("/login/")
-def login(info: UserLoginInfo):
-    response = supabase_login(info.email, info.password)
-    return {"data": response}
-
-@app.get("/logout/")
-def logout():
-    response = supabase_logout()
-    print(response)
-    return {"data": response}
+# File-based authentication endpoints are now handled by file_auth_router
 
 
 
@@ -141,168 +113,16 @@ def send_data(conn: Connection, dbconn: DBConnection, data: list[Dict]):
     return structured_data
 
 
-@app.post("/bookmark-node/")
-def bookmark_node(token: AccessToken, conn: Connection):
-    """
-    Bookmark a node by sending a command to the AnyLog server.
-    """
-    print("token", token.jwt)
-    print("node", conn.conn)
-
-    user = supabase_get_user(token.jwt)
-
-    print(user.user.id)
-
-    user_id = user.user.id
-
-    resp = supabase_bookmark_node(user_id, conn.conn)
-    print("Bookmark response:", resp)
-
-    return {"data": resp}
+# Bookmark and preset endpoints are now handled by file_auth_router
 
 
-@app.post("/get-bookmarked-nodes/")
-def get_bookmarked_nodes(token: AccessToken):
-    """
-    Get all bookmarked nodes for the authenticated user.
-    """
-    print("token: ", token)
-    user = supabase_get_user(token.jwt)
-    user_id = user.user.id
-    print("User ID:", user_id)
-    resp = supabase_get_bookmarked_nodes(user_id)
-    print("Bookmarked nodes response:", resp)
-    return {"data": resp.data}
-
-@app.post("/delete-bookmarked-node/")
-def delete_bookmarked_node(token: AccessToken, conn: Connection):
-    """
-    Delete a bookmarked node for the authenticated user.
-    """
-    print("token: ", token.jwt)
-    print("node: ", conn.conn)
-
-    user = supabase_get_user(token.jwt)
-    user_id = user.user.id
-
-    response = supabase_delete_bookmarked_node(user_id, conn.conn)
-    print("Delete bookmark response:", response)
-
-    return {"data": response.data}
-
-@app.post("/update-bookmark-description/")
-def update_bookmark_description(request: BookmarkUpdateRequest):
-    user = supabase_get_user(request.token.jwt)
-    user_id = user.user.id
-
-    response = supabase_update_bookmark_description(user_id, request.node, request.description)
-    return {"data": response.data}
+# All bookmark and preset endpoints are now handled by file_auth_router
 
 
-@app.post("/add-preset-group/")
-def add_preset_group(token: AccessToken, group: PresetGroup):
-    """
-    Bookmark a node by sending a command to the AnyLog server.
-    """
-    print("token", token.jwt)
-    print("name", group.group_name)
-
-    user = supabase_get_user(token.jwt)
-
-    print(user.user.id)
-
-    user_id = user.user.id
-
-    resp = auth.supabase_add_preset_group(user_id, group.group_name)
-
-    # r2 = helpers.make_preset_group_policy("23.239.12.151:32349", group.group_name)
-    # parsed = parse_response(r2)
-    # print("parsed from group policy:", parsed)
-
-    # print("presetgroup response:", resp)
-
-    return {"data": resp}
-
-@app.post("/get-preset-groups/")
-def get_preset_groups(token: AccessToken):
-    """
-    Get all bookmarked nodes for the authenticated user.
-    """
-    print("token: ", token)
-    user = supabase_get_user(token.jwt)
-    user_id = user.user.id
-    print("User ID:", user_id)
-    resp = auth.supabase_get_preset_groups(user_id)
-    print("Preset groups response:", resp)
-    return {"data": resp.data}
+# Preset group endpoints are now handled by file_auth_router
 
 
-@app.post("/add-preset/")
-def add_preset_to_group(token: AccessToken, preset: Preset):
-    """
-    Bookmark a node by sending a command to the AnyLog server.
-    """
-    print("token", token.jwt)
-    print("preset", preset)
-
-    user = supabase_get_user(token.jwt)
-
-    print(user.user.id)
-
-    user_id = user.user.id
-
-    resp = auth.supabase_add_preset_to_group(user_id, preset.group_id, preset.command, preset.type, preset.button)
-    # resp2 = make_preset_policy("23.239.12.151:32349", preset, preset.group_name)
-
-    # parsed = parse_response(resp2)
-    # print("parsed:", parsed['data']['bookmark'])
-
-    print("preset other response:", resp)
-
-    return {"data": resp}
-
-@app.post("/get-presets/")
-def get_presets(token: AccessToken, group_id: PresetGroupID):
-    """
-    Get all presets for a specific group for the authenticated user.
-    """
-    print("token: ", token.jwt)
-    print("group_id: ", group_id.group_id)
-
-    user = supabase_get_user(token.jwt)
-    user_id = user.user.id
-    print("User ID:", user_id)
-
-    resp = auth.supabase_get_presets_by_group(user_id, group_id.group_id)
-    print("Presets response to get by group:", resp)
-
-    return {"data": resp.data}
-
-
-@app.post("/delete-preset-group/")
-def delete_preset_group(token: AccessToken, group_id: PresetGroupID, group: PresetGroup):
-    """
-    Bookmark a node by sending a command to the AnyLog server.
-    """
-    print("token", token.jwt)
-    print("name", group_id.group_id)
-    print("GROUP NAMEMMMMMEMEMEME:", group.group_name)
-
-
-    user = supabase_get_user(token.jwt)
-
-    print(user.user.id)
-
-    user_id = user.user.id
-
-    resp = auth.supabase_delete_preset_group(user_id, group_id.group_id)
-
-    # r2 = helpers.delete_preset_group_policy("23.239.12.151:32349", group.group_name)
-    # parsed = parse_response(r2)
-    # print("parsed from group policy:", parsed)
-    # print("presetgroupdelete response:", resp)
-
-    return {"data": resp}
+# All preset endpoints are now handled by file_auth_router
 
 @app.post("/get-preset-policy/")
 def get_preset_policy():

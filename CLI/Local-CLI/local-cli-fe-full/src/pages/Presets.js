@@ -5,10 +5,10 @@ import React, { useEffect, useState } from "react";
 import {
   getPresetGroups,
   addPresetGroup,
-  deletePresetGroup,    // ← new import
+  deletePresetGroup,
   getPresetsByGroup,
   addPreset
-} from "../services/api";
+} from "../services/file_auth";
 import "../styles/Presets.css";
 
 const Presets = () => {
@@ -31,8 +31,7 @@ const Presets = () => {
   useEffect(() => {
     const loadGroups = async () => {
       try {
-        const jwt = localStorage.getItem("accessToken");
-        const res = await getPresetGroups({ jwt });
+        const res = await getPresetGroups();
         setGroups(res.data);
       } catch (e) {
         console.error(e);
@@ -49,10 +48,8 @@ const Presets = () => {
     }
     const loadPresets = async () => {
       try {
-        const jwt = localStorage.getItem("accessToken");
         const res = await getPresetsByGroup({
-          groupId: selectedGroupId,
-          jwt
+          groupId: selectedGroupId
         });
         setPresets(res.data);
       } catch (e) {
@@ -69,11 +66,10 @@ const Presets = () => {
     }
     setLoading(true);
     try {
-      const jwt = localStorage.getItem("accessToken");
-      const res = await addPresetGroup({ name: groupName, jwt });
+      const res = await addPresetGroup({ name: groupName });
       // Assume new group is returned as an object in res.data
       console.log("Group created:", res.data);
-      const newG = res.data.data[0]; // Assuming the API returns the new group in this format
+      const newG = res.data.group; // Updated to match new API response format
       setGroups(g => [...g, newG]);
       setGroupName("");
       setError("");
@@ -92,10 +88,9 @@ const Presets = () => {
     }
     setLoading(true);
     try {
-      const jwt = localStorage.getItem("accessToken");
       const gname = groups.find(g => parseInt(g.id) === parseInt(groupId))?.group_name;
       console.log("Deleting group:", groupId, gname);
-      const res = await deletePresetGroup({ jwt, groupId, gname });
+      const res = await deletePresetGroup({ groupId, groupName: gname });
       console.log("Group deleted:", res.data);
       // remove from state
       setGroups(g => g.filter(x => x.id !== groupId));
@@ -123,7 +118,6 @@ const Presets = () => {
     }
     setLoading(true);
     try {
-      const jwt = localStorage.getItem("accessToken");
       const newpreset = {
         command:  command.trim(),
         type:     type.trim(),
@@ -132,8 +126,8 @@ const Presets = () => {
         group_name: gname
       };
       console.log("New preset:", newpreset);
-      const res = await addPreset({ preset: newpreset, jwt });
-      const created = res.data.data[0]; // Assuming the API returns the new preset in this format
+      const res = await addPreset({ preset: newpreset });
+      const created = res.data.preset; // Updated to match new API response format
       setPresets(p => [...p, created]);
       setPreset({ command: "", type: "GET", button: "" });
       setError("");

@@ -1,0 +1,29 @@
+{
+  "groups": [],
+  "preset_groups": [
+    {
+      "id": "98323c28-5840-4596-afc2-173aeae6be17",
+      "user_id": "5a9137e0-85b1-4079-9b63-5ff40f69b1b0",
+      "group_name": "Database Commands",
+      "created_at": "2025-08-05T13:10:22.671514"
+    },
+    {
+      "id": "fee668fd-6329-496d-975c-e8cc65ae042a",
+      "user_id": "5a9137e0-85b1-4079-9b63-5ff40f69b1b0",
+      "group_name": "Custom Queries",
+      "created_at": "2025-08-05T13:10:22.672602"
+    },
+    {
+      "id": "498359fd-385a-4b61-ae08-8cf6fff85998",
+      "user_id": "6091e275-1ef1-42a3-aa25-e45c630e87fa",
+      "group_name": "Quick Commands",
+      "created_at": "2025-08-05T13:11:42.591663"
+    },
+    {
+      "id": "97d3ae72-4d84-4b2d-97ef-8f8b9d38d4ae",
+      "user_id": "6091e275-1ef1-42a3-aa25-e45c630e87fa",
+      "group_name": "System Monitoring",
+      "created_at": "2025-08-05T13:11:42.592539"
+    }
+  ]
+}

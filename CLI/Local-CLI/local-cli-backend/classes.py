@@ -41,10 +41,10 @@ class PresetGroup(BaseModel):
     group_name: str
 
 class PresetGroupID(BaseModel):
-    group_id: int
+    group_id: str
 
 class Preset(BaseModel):
-    group_id: int
+    group_id: str
     group_name: str = "base"
     command: str
     type: str  # "GET" or "POST"

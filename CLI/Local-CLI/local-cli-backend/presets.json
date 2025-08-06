@@ -1,0 +1,67 @@
+{
+  "presets": [
+    {
+      "id": "7cf73dbf-3edd-4b67-978b-66f83e1eb3cf",
+      "user_id": "5a9137e0-85b1-4079-9b63-5ff40f69b1b0",
+      "group_id": "98323c28-5840-4596-afc2-173aeae6be17",
+      "command": "blockchain get *",
+      "type": "GET",
+      "button": "Get All Data",
+      "created_at": "2025-08-05T13:10:22.673613"
+    },
+    {
+      "id": "ba6c1b64-dff1-4425-b532-8fac5bd2b8c4",
+      "user_id": "5a9137e0-85b1-4079-9b63-5ff40f69b1b0",
+      "group_id": "98323c28-5840-4596-afc2-173aeae6be17",
+      "command": "blockchain get table_name",
+      "type": "GET",
+      "button": "Get Table",
+      "created_at": "2025-08-05T13:10:22.673928"
+    },
+    {
+      "id": "f1ffa8d6-54cf-4984-b941-7e3a5f2627d6",
+      "user_id": "5a9137e0-85b1-4079-9b63-5ff40f69b1b0",
+      "group_id": "fee668fd-6329-496d-975c-e8cc65ae042a",
+      "command": "SELECT * FROM table WHERE timestamp > now() - 1 hour",
+      "type": "POST",
+      "button": "Recent Data",
+      "created_at": "2025-08-05T13:10:22.674543"
+    },
+    {
+      "id": "4697f283-5b7f-48ed-b8b4-18edc683001b",
+      "user_id": "6091e275-1ef1-42a3-aa25-e45c630e87fa",
+      "group_id": "498359fd-385a-4b61-ae08-8cf6fff85998",
+      "command": "blockchain get *",
+      "type": "GET",
+      "button": "Get All",
+      "created_at": "2025-08-05T13:11:42.592926"
+    },
+    {
+      "id": "2a9a98e6-9c60-4761-a22c-fe13d5c486e3",
+      "user_id": "6091e275-1ef1-42a3-aa25-e45c630e87fa",
+      "group_id": "498359fd-385a-4b61-ae08-8cf6fff85998",
+      "command": "blockchain get status",
+      "type": "GET",
+      "button": "Get Status",
+      "created_at": "2025-08-05T13:11:42.593263"
+    },
+    {
+      "id": "24b0047e-5287-4381-856e-06cd82b68f00",
+      "user_id": "6091e275-1ef1-42a3-aa25-e45c630e87fa",
+      "group_id": "97d3ae72-4d84-4b2d-97ef-8f8b9d38d4ae",
+      "command": "monitor network",
+      "type": "GET",
+      "button": "Monitor Network",
+      "created_at": "2025-08-05T13:11:42.594032"
+    },
+    {
+      "id": "3cd81dc9-fe7b-4a89-b531-a355f808c1c1",
+      "user_id": "6091e275-1ef1-42a3-aa25-e45c630e87fa",
+      "group_id": "97d3ae72-4d84-4b2d-97ef-8f8b9d38d4ae",
+      "command": "monitor nodes",
+      "type": "GET",
+      "button": "Monitor Nodes",
+      "created_at": "2025-08-05T13:11:42.594236"
+    }
+  ]
+}

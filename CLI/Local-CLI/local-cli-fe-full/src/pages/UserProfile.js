@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getUser, logout } from '../services/auth'; // Adjust path as needed
-import { getBookmarks, deleteBookmarkedNode } from '../services/api';
-import { updateBookmarkDescription } from '../services/api';
+import { getUser, logout } from '../services/file_auth';
+import { getBookmarks, deleteBookmarkedNode, updateBookmarkDescription } from '../services/file_auth';
 import BookmarkTable from '../components/BookmarkTable';
 
 // import '../styles/UserProfile.css';
 
-const UserProfile = () => {
+const UserProfile = ({ onBookmarkRefresh }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -14,6 +13,25 @@ const UserProfile = () => {
     const [bookmarks, setBookmarks] = useState([]);
     const [loadingBookmarks, setLoadingBookmarks] = useState(true);
     const [bookmarksError, setBookmarksError] = useState(null);
+
+    // Function to refresh bookmarks
+    const refreshBookmarks = async () => {
+        setLoadingBookmarks(true);
+        setBookmarksError(null);
+        try {
+            const result = await getBookmarks();
+            const data = Array.isArray(result.data)
+                ? result.data.map(item =>
+                    typeof item === 'string' ? { node: item } : item
+                )
+                : [];
+            setBookmarks(data);
+        } catch (err) {
+            setBookmarksError(err.message || 'Failed to load bookmarks');
+        } finally {
+            setLoadingBookmarks(false);
+        }
+    };
 
 
     useEffect(() => {
@@ -24,8 +42,8 @@ const UserProfile = () => {
 
             try {
                 const result = await getUser();
-                setUser(result.data.user.user_metadata);
-                console.log(result);
+                console.log("Result: ", result);
+                setUser(result.data);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -37,27 +55,18 @@ const UserProfile = () => {
     }, []);
 
     useEffect(() => {
-        const fetchBookmarks = async () => {
-            setLoadingBookmarks(true);
-            setBookmarksError(null);
-            try {
-                const jwt = localStorage.getItem('accessToken');
-                const result = await getBookmarks({ jwt });
-                // result.data might be an array of objects like { id, node, ... }
-                // if it's just an array of strings: convert into [{ node }]
-                const data = Array.isArray(result.data)
-                    ? result.data.map(item =>
-                        typeof item === 'string' ? { node: item } : item
-                    )
-                    : [];
-                setBookmarks(data);
-            } catch (err) {
-                setBookmarksError(err.message || 'Failed to load bookmarks');
-            } finally {
-                setLoadingBookmarks(false);
-            }
+        refreshBookmarks();
+        
+        // Listen for bookmark refresh events
+        const handleBookmarkRefresh = () => {
+            refreshBookmarks();
         };
-        fetchBookmarks();
+        
+        window.addEventListener('bookmark-refresh', handleBookmarkRefresh);
+        
+        return () => {
+            window.removeEventListener('bookmark-refresh', handleBookmarkRefresh);
+        };
     }, []);
 
 
@@ -91,9 +100,8 @@ const UserProfile = () => {
         );
     }
     const handleDeleteBookmark = async (node) => {
-        const jwt = localStorage.getItem('accessToken');
         try {
-            await deleteBookmarkedNode({ jwt, node });
+            await deleteBookmarkedNode({ node });
             setBookmarks((prev) => prev.filter((b) => b.node !== node));
         } catch (err) {
             console.error('Error deleting bookmark:', err);
@@ -101,9 +109,8 @@ const UserProfile = () => {
         }
     };
     const handleUpdateDescription = async (node, description) => {
-        const jwt = localStorage.getItem('accessToken');
         try {
-          await updateBookmarkDescription({ jwt, node, description });
+          await updateBookmarkDescription({ node, description });
           setBookmarks((prev) =>
             prev.map((b) => (b.node === node ? { ...b, description } : b))
           );
@@ -123,7 +130,7 @@ const UserProfile = () => {
                     alt="Profile"
                     className="profile-avatar"
                 /> */}
-                <h1 className="profile-name">{user.first_name} {user.last_name}</h1>
+                <h1 className="profile-name">{user.firstname} {user.lastname}</h1>
                 <p className="profile-email">{user.email}</p>
                 {/* Add more fields as needed */}
                 {/* Logout button */}
@@ -142,7 +149,22 @@ const UserProfile = () => {
                 </button>
             </div>
             <div className="bookmarks-section" style={{ marginTop: '2rem' }}>
-                <h2>Your Bookmarked Nodes</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h2>Your Bookmarked Nodes</h2>
+                    <button 
+                        onClick={refreshBookmarks}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '0.25rem',
+                            border: 'none',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Refresh
+                    </button>
+                </div>
 
                 {loadingBookmarks ? (
                     <div>Loading bookmarks…</div>

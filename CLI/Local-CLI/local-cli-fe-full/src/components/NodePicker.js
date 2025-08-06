@@ -1,11 +1,12 @@
 // src/components/NodePicker.js
 import React, { useState } from 'react';
-import { getConnectedNodes, bookmarkNode } from '../services/api'; // Adjust the import path as necessary
+import { getConnectedNodes } from '../services/api'; // Adjust the import path as necessary
+import { bookmarkNode } from '../services/file_auth';
 import '../styles/NodePicker.css'; // Optional: create a CSS file for node picker styling
-import { isLoggedIn } from '../services/auth';
+import { isLoggedIn } from '../services/file_auth';
 import { useEffect } from 'react';
 
-const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode }) => {
+const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode, onBookmarkAdded }) => {
   const [newNode, setNewNode] = useState('');
   const [error, setError] = useState(null);
   const [local, setLocal] = useState(false);
@@ -77,9 +78,16 @@ const NodePicker = ({ nodes, selectedNode, onAddNode, onSelectNode }) => {
 
     try {
       if (isLoggedIn()) {
-        const jwt = localStorage.getItem('accessToken');
-        await bookmarkNode({ node: selectedNode, jwt });
+        await bookmarkNode({ node: selectedNode });
         setBookmarkMsg(`Bookmarked ${selectedNode}!`);
+        
+        // Dispatch event to refresh bookmarks globally
+        window.dispatchEvent(new Event('bookmark-refresh'));
+        
+        // Call the callback to refresh bookmarks in parent component
+        if (onBookmarkAdded) {
+          onBookmarkAdded();
+        }
       }
     } catch (err) {
       console.error('Bookmark failed:', err);
