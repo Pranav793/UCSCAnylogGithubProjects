@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict
 import file_auth
-from classes import UserSignupInfo, UserLoginInfo, AccessToken, BookmarkUpdateRequest, PresetGroup, PresetGroupID, Preset
+from classes import UserSignupInfo, UserLoginInfo, AccessToken, BookmarkUpdateRequest, PresetGroup, PresetGroupID, Preset, PresetID
 
 # Create router
 file_auth_router = APIRouter(prefix="/auth", tags=["file-auth"])
@@ -157,6 +157,20 @@ def delete_preset_group(token: AccessToken, group_id: PresetGroupID, group: Pres
     if user:
         user_id = user["id"]
         response = file_auth.file_delete_preset_group(user_id, group_id.group_id)
+        return {"data": response}
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
+
+@file_auth_router.post("/delete-preset/")
+def delete_preset(token: AccessToken, preset_id: PresetID):
+    """Delete an individual preset for the authenticated user"""
+    print("Delete preset token:", token.jwt)
+    print("Preset ID:", preset_id.preset_id)
+    
+    user = file_auth.file_get_user(token.jwt)
+    if user:
+        user_id = user["id"]
+        response = file_auth.file_delete_preset(user_id, preset_id.preset_id)
         return {"data": response}
     else:
         raise HTTPException(status_code=404, detail="User not found") 

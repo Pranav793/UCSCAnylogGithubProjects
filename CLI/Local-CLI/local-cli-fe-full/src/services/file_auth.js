@@ -446,6 +446,45 @@ export async function getPresetsByGroup({ groupId }) {
     }
 }
 
+export async function deletePreset({ presetId }) {
+    if (!presetId) {
+        throw new Error('Missing preset ID');
+    }
+
+    try {
+        const userId = getUserId();
+
+        const requestBody = {
+            token: {
+                jwt: userId
+            },
+            preset_id: {
+                preset_id: presetId
+            }
+        };
+
+        console.log("Delete preset request body: ", requestBody);
+
+        const response = await fetch(`${API_URL}/auth/delete-preset/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error deleting preset:', error);
+        throw error;
+    }
+}
+
 // Utility functions
 export function getCurrentUser() {
     return {

@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from file_auth import (
     file_signup, file_add_preset_group, file_get_preset_groups,
     file_add_preset_to_group, file_get_presets_by_group,
-    file_delete_preset_group
+    file_delete_preset_group, file_delete_preset
 )
 
 def test_presets():
@@ -123,8 +123,27 @@ def test_presets():
     else:
         print(f"❌ Unexpected result: {result}")
     
-    # Test 8: Delete a preset group
-    print("\n8. Deleting a preset group...")
+    # Test 8: Delete an individual preset
+    print("\n8. Testing individual preset deletion...")
+    # Get presets from the first group
+    presets = file_get_presets_by_group(user_id, group_ids[0])
+    if presets:
+        preset_to_delete = presets[0]  # Delete the first preset
+        print(f"Deleting preset: {preset_to_delete['button']}")
+        result = file_delete_preset(user_id, preset_to_delete['id'])
+        if "error" in result:
+            print(f"❌ Failed to delete preset: {result['error']}")
+        else:
+            print("✅ Preset deleted successfully")
+        
+        # Verify preset deletion
+        presets_after_delete = file_get_presets_by_group(user_id, group_ids[0])
+        print(f"✅ Group now has {len(presets_after_delete)} presets (was {len(presets)})")
+    else:
+        print("⚠️ No presets to delete")
+    
+    # Test 9: Delete a preset group
+    print("\n9. Deleting a preset group...")
     group_to_delete = group_ids[1]  # Monitoring group
     result = file_delete_preset_group(user_id, group_to_delete)
     if "error" in result:
@@ -132,15 +151,15 @@ def test_presets():
     else:
         print("✅ Group deleted successfully")
     
-    # Test 9: Verify group deletion
-    print("\n9. Verifying group deletion...")
+    # Test 10: Verify group deletion
+    print("\n10. Verifying group deletion...")
     groups_after_delete = file_get_preset_groups(user_id)
     print(f"✅ Now have {len(groups_after_delete)} groups:")
     for group in groups_after_delete:
         print(f"   - {group['group_name']}")
     
-    # Test 10: Verify presets are also deleted
-    print("\n10. Verifying presets are deleted with group...")
+    # Test 11: Verify presets are also deleted
+    print("\n11. Verifying presets are deleted with group...")
     presets_after_delete = file_get_presets_by_group(user_id, group_to_delete)
     print(f"✅ Deleted group has {len(presets_after_delete)} presets (should be 0)")
     

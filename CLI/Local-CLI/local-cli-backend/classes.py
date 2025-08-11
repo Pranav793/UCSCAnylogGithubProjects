@@ -50,6 +50,9 @@ class Preset(BaseModel):
     type: str  # "GET" or "POST"
     button: str
 
+class PresetID(BaseModel):
+    preset_id: str
+
 class DatabaseInfo(BaseModel):
     database: str
 

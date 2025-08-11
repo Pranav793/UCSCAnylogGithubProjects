@@ -512,7 +512,7 @@ const SqlQueryGenerator = ({ node }) => {
                 />
               </div>
 
-              {/* <div className="aggregations-section">
+              <div className="aggregations-section">
                 <div className="section-header">
                   <h4>Aggregations</h4>
                   <button onClick={addAggregation} className="btn-secondary">Add Aggregation</button>
@@ -557,7 +557,7 @@ const SqlQueryGenerator = ({ node }) => {
                 ))}
               </div>
 
-              <div className="joins-section">
+              {/* <div className="joins-section">
                 <div className="section-header">
                   <h4>JOINs</h4>
                   <button onClick={addJoin} className="btn-secondary">Add JOIN</button>

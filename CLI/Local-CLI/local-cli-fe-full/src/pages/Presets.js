@@ -7,7 +7,8 @@ import {
   addPresetGroup,
   deletePresetGroup,
   getPresetsByGroup,
-  addPreset
+  addPreset,
+  deletePreset
 } from "../services/file_auth";
 import "../styles/Presets.css";
 
@@ -111,29 +112,47 @@ const Presets = () => {
   const handleCreatePreset = async () => {
 
     const gname = groups.find(g => parseInt(g.id) === parseInt(selectedGroupId))?.group_name;
-    const { command, type, button } = preset;
-    if (!selectedGroupId || !command || !type || !button) {
-      setError("All fields + group selection required");
+    
+    if (!preset.command.trim() || !preset.button.trim()) {
+      setError("Command and button label required");
       return;
     }
     setLoading(true);
     try {
-      const newpreset = {
-        command:  command.trim(),
-        type:     type.trim(),
-        button:   button.trim(),
-        group_id: selectedGroupId,
-        group_name: gname
-      };
-      console.log("New preset:", newpreset);
-      const res = await addPreset({ preset: newpreset });
-      const created = res.data.preset; // Updated to match new API response format
-      setPresets(p => [...p, created]);
-      setPreset({ command: "", type: "GET", button: "" });
+      const res = await addPreset({ 
+        preset: { 
+          ...preset, 
+          group_id: selectedGroupId,
+          group_name: gname
+        } 
+      });
+      console.log("Preset created:", res.data);
+      const newP = res.data.preset;
+      setPresets(p => [...p, newP]);
+      setPreset({ command: "", type: "GET", button: "", groupName: gname });
       setError("");
-      setSuccessMsg("Preset added");
+      setSuccessMsg(`Preset "${newP.button}" created`);
     } catch {
-      setError("Failed to add preset");
+      setError("Failed to create preset");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePreset = async (presetId) => {
+    if (!window.confirm("Delete this preset?")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await deletePreset({ presetId });
+      console.log("Preset deleted:", res.data);
+      // remove from state
+      setPresets(p => p.filter(x => x.id !== presetId));
+      setError("");
+      setSuccessMsg("Preset deleted");
+    } catch {
+      setError("Failed to delete preset");
     } finally {
       setLoading(false);
     }
@@ -173,8 +192,9 @@ const Presets = () => {
                 className="delete-btn"
                 disabled={loading}
                 onClick={() => handleDeleteGroup(g.id)}
+                title="Delete group and all its presets"
               >
-                🗑
+                🗑️
               </button>
             </li>
           ))}
@@ -233,12 +253,35 @@ const Presets = () => {
             </div>
 
             <ul className="preset-list">
-              {presets.map(p => (
-                <li key={p.id}>
-                  <strong>{p.button}</strong>: {p.command}{" "}
-                  <em>({p.type})</em>
+              {presets.length === 0 ? (
+                <li className="empty-state">
+                  <div className="preset-content">
+                    <div className="preset-command" style={{ textAlign: 'center', color: '#6c757d', fontStyle: 'italic' }}>
+                      No presets in this group yet. Add your first preset above!
+                    </div>
+                  </div>
                 </li>
-              ))}
+              ) : (
+                presets.map(p => (
+                  <li key={p.id}>
+                    <div className="preset-content">
+                      <div className="preset-header">
+                        <span className="preset-button">{p.button}</span>
+                        <span className="preset-type">{p.type}</span>
+                      </div>
+                      <div className="preset-command">{p.command}</div>
+                    </div>
+                    <button
+                      className="delete-btn"
+                      disabled={loading}
+                      onClick={() => handleDeletePreset(p.id)}
+                      title="Delete preset"
+                    >
+                      🗑️
+                    </button>
+                  </li>
+                ))
+              )}
             </ul>
           </>
         )}

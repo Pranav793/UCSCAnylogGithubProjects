@@ -282,3 +282,20 @@ def file_delete_preset_group(user_id: str, group_id: str) -> Dict:
         return {"message": "Group and all its presets deleted successfully"}
     else:
         return {"error": "Group not found or access denied"}
+
+def file_delete_preset(user_id: str, preset_id: str) -> Dict:
+    """Delete an individual preset"""
+    presets_data = load_json_file(PRESETS_FILE)
+    
+    # Find and delete the preset
+    original_preset_count = len(presets_data.get("presets", []))
+    presets_data["presets"] = [
+        preset for preset in presets_data.get("presets", [])
+        if not (preset.get("id") == preset_id and preset.get("user_id") == user_id)
+    ]
+    
+    if len(presets_data["presets"]) < original_preset_count:
+        save_json_file(PRESETS_FILE, presets_data)
+        return {"message": "Preset deleted successfully"}
+    else:
+        return {"error": "Preset not found or access denied"}
