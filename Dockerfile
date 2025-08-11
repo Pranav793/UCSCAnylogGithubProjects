@@ -91,5 +91,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends npm xsel && \
 
 EXPOSE 8000 3001
 
-#CMD ["/app/start.sh"]
-ENTRYPOINT ["/bin/sh"]
+ENTRYPOINT ["/app/start.sh"]
+#ENTRYPOINT ["/bin/sh"]
