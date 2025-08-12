@@ -38,6 +38,12 @@ services:
       - edgelake-node-data:/app/EdgeLake/data
       - edgelake-node-local-scripts:/app/deployment-scripts
       - gui-vol:/app/CLI/Local-CLI/local-cli-backend/static/
+      - ./CLI/Local-CLI/local-cli-backend/presets.json:/app/CLI/Local-CLI/local-cli-backend/presets.json
+      - ./CLI/Local-CLI/local-cli-backend/preset_groups.json:/app/CLI/Local-CLI/local-cli-backend/preset_groups.json
+      - ./CLI/Local-CLI/local-cli-backend/bookmarks.json:/app/CLI/Local-CLI/local-cli-backend/bookmarks.json
+      - ./CLI/Local-CLI/local-cli-backend/users.json:/app/CLI/Local-CLI/local-cli-backend/users.json
+
+
 volumes:
   edgelake-node-anylog:
   edgelake-node-blockchain:
