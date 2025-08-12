@@ -203,5 +203,11 @@ export function isLoggedIn() {
 //    }
 
 //     return !!localStorage.getItem('accessToken');
-    return true; // For testing purposes, always return true
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+        return false;
+    }
+    return true;
+
+    // return true; // For testing purposes, always return true
   }

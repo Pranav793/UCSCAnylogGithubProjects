@@ -156,9 +156,12 @@ def delete_preset_group(token: AccessToken, group_id: PresetGroupID, group: Pres
     user = file_auth.file_get_user(token.jwt)
     if user:
         user_id = user["id"]
+        print(f"User found: {user_id}")
         response = file_auth.file_delete_preset_group(user_id, group_id.group_id)
+        print(f"Delete response: {response}")
         return {"data": response}
     else:
+        print("User not found")
         raise HTTPException(status_code=404, detail="User not found")
 
 @file_auth_router.post("/delete-preset/")

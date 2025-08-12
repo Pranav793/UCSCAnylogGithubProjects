@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { getDatabases, getTables, getColumns } from '../services/api';
+import { getDatabases, getTables, getColumns, sendCommand } from '../services/api';
+import DataTable from '../components/DataTable';
 import '../styles/SqlQueryGenerator.css';
+
+// run client () sql opcua_demo format = table "SELECT min(value), max(value), avg(value) FROM t11 WHERE period(hour, 3, now(), timestamp)"
+// implement:
+// periods
+// increments
+// better where clause (where columns >=/==/<= value)
+// better aggregators
+// make exceptions for timestamps
+
 
 const SqlQueryGenerator = ({ node }) => {
   const [databases, setDatabases] = useState([]);
@@ -14,6 +24,8 @@ const SqlQueryGenerator = ({ node }) => {
   const [error, setError] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [whereClause, setWhereClause] = useState('');
+  const [whereConditions, setWhereConditions] = useState([]);
+  const [periods, setPeriods] = useState([]);
   const [groupBy, setGroupBy] = useState('');
   const [orderBy, setOrderBy] = useState('');
   const [limit, setLimit] = useState('');
@@ -28,6 +40,12 @@ const SqlQueryGenerator = ({ node }) => {
   const [incrementsUnit, setIncrementsUnit] = useState('minute');
   const [incrementsInterval, setIncrementsInterval] = useState(1);
   const [incrementsDateColumn, setIncrementsDateColumn] = useState('');
+
+  // Execution state
+  const [executing, setExecuting] = useState(false);
+  const [executionResult, setExecutionResult] = useState(null);
+  const [executionError, setExecutionError] = useState(null);
+  const [executionTime, setExecutionTime] = useState(null);
 
   // Fetch databases on component mount
   useEffect(() => {
@@ -59,7 +77,7 @@ const SqlQueryGenerator = ({ node }) => {
   // Update query when selections change
   useEffect(() => {
     buildQuery();
-  }, [selectedColumns, whereClause, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn]);
+  }, [selectedColumns, whereConditions, periods, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn]);
 
   const fetchDatabases = async () => {
     setLoading(true);
@@ -105,7 +123,31 @@ const SqlQueryGenerator = ({ node }) => {
   };
 
   const buildQuery = () => {
-    if (!selectedDatabase || !selectedTable || selectedColumns.length === 0) {
+    // Check if we have any content to build a query with
+    const hasRegularColumns = selectedColumns.length > 0;
+    const hasAggregations = aggregations.length > 0 && aggregations.some(agg => {
+      if (!agg.column || !agg.function) return false;
+      // For date/time columns, only MIN and MAX are valid
+      if (isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX') return false;
+      return true;
+    });
+    const hasPeriods = periods.length > 0 && periods.some(period => period.timeScale && period.amount && period.startValue && period.column);
+    const hasIncrements = useIncrements && incrementsDateColumn;
+    
+    // If no columns and no aggregations, don't build a query
+    if (!hasRegularColumns && !hasAggregations) {
+      setQuery('');
+      return;
+    }
+
+    // Check for conflicts between periods and increments
+    if (hasPeriods && hasIncrements) {
+      setQuery('');
+      return;
+    }
+
+    // Check if increments requires aggregations
+    if (hasIncrements && !hasAggregations) {
       setQuery('');
       return;
     }
@@ -133,20 +175,47 @@ const SqlQueryGenerator = ({ node }) => {
       anylogQuery += 'DISTINCT ';
     }
     
-    // Add increments function if enabled
+    // Build the SELECT clause with columns and aggregations
     let selectClause = '';
-    if (useIncrements && incrementsDateColumn) {
-      selectClause += `increments(${incrementsDateColumn}, ${incrementsInterval}, ${incrementsUnit}), `;
+    
+    // Add increments function if enabled
+    if (hasIncrements) {
+      selectClause += `increments(${incrementsUnit}, ${incrementsInterval}, ${incrementsDateColumn}), `;
+      // Add min and max of the date column automatically
+      selectClause += `min(${incrementsDateColumn}), max(${incrementsDateColumn})`;
     }
     
-    // Add selected columns with aggregations
-    selectClause += selectedColumns.map(col => {
-      const agg = aggregations.find(a => a.column === col);
-      if (agg) {
-        return `${agg.function}(${col}) as ${agg.alias || col}`;
+    // Add selected columns (without aggregations)
+    const regularColumns = selectedColumns.filter(col => {
+      // Check if this column has any aggregations
+      const hasAggregation = aggregations.some(agg => agg.column === col);
+      return !hasAggregation;
+    });
+    
+    if (regularColumns.length > 0) {
+      if (selectClause.length > 0) {
+        selectClause += ', ';
       }
-      return col;
-    }).join(', ');
+      selectClause += regularColumns.join(', ');
+    }
+    
+    // Add aggregations as separate columns
+    aggregations.forEach((agg, index) => {
+      if (agg.column && agg.function) {
+        // Validate that date/time columns only use MIN or MAX
+        if (isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX') {
+          return; // Skip invalid aggregations
+        }
+        
+        // Add comma if there are previous columns
+        if (selectClause.length > 0) {
+          selectClause += ', ';
+        }
+        
+        const alias = agg.alias || `${agg.function.toLowerCase()}_${agg.column}`;
+        selectClause += `${agg.function}(${agg.column}) as ${alias}`;
+      }
+    });
     
     anylogQuery += selectClause;
     
@@ -159,8 +228,51 @@ const SqlQueryGenerator = ({ node }) => {
     });
     
     // Add WHERE clause
-    if (whereClause.trim()) {
-      anylogQuery += ` WHERE ${whereClause}`;
+    if (whereConditions.length > 0 || periods.length > 0) {
+      const validConditions = whereConditions.filter(condition => 
+        condition.column && condition.operator && condition.value !== undefined && condition.value !== ''
+      );
+      
+      const validPeriods = periods.filter(period => 
+        period.timeScale && period.amount && period.startValue !== undefined && period.startValue !== '' && period.column
+      );
+      
+      const whereParts = [];
+      
+      // Add regular WHERE conditions
+      if (validConditions.length > 0) {
+        const conditionStrings = validConditions.map(condition => {
+          // Handle different value types
+          let value = condition.value;
+          if (condition.value === 'NOW()') {
+            value = 'NOW()';
+          } else if (typeof condition.value === 'string' && !condition.value.startsWith('NOW()')) {
+            // Quote string values unless they're functions
+            value = `'${condition.value}'`;
+          }
+          return `${condition.column} ${condition.operator} ${value}`;
+        });
+        whereParts.push(...conditionStrings);
+      }
+      
+      // Add period conditions
+      if (validPeriods.length > 0) {
+        const periodStrings = validPeriods.map(period => {
+          let startValue = period.startValue;
+          if (period.startValue === 'NOW()') {
+            startValue = 'NOW()';
+          } else if (typeof period.startValue === 'string' && !period.startValue.startsWith('NOW()')) {
+            // Quote string values unless they're functions
+            startValue = `'${period.startValue}'`;
+          }
+          return `period(${period.timeScale}, ${period.amount}, ${startValue}, ${period.column})`;
+        });
+        whereParts.push(...periodStrings);
+      }
+      
+      if (whereParts.length > 0) {
+        anylogQuery += ` WHERE ${whereParts.join(' AND ')}`;
+      }
     }
     
     // Add GROUP BY clause
@@ -213,12 +325,63 @@ const SqlQueryGenerator = ({ node }) => {
     }
   };
 
+  const executeQuery = async () => {
+    if (!query.trim()) {
+      setExecutionError('No query to execute. Please build a query first.');
+      return;
+    }
+
+    if (!node) {
+      setExecutionError('No node connected. Please connect to a node first.');
+      return;
+    }
+
+    // Basic validation for AnyLog SQL query format
+    if (!query.startsWith('run client () sql')) {
+      setExecutionError('Invalid query format. Query should start with "run client () sql"');
+      return;
+    }
+
+    setExecuting(true);
+    setExecutionError(null);
+    setExecutionResult(null);
+    setExecutionTime(null);
+
+    try {
+      console.log('Executing query:', query);
+      const startTime = Date.now();
+      
+      const result = await sendCommand({
+        connectInfo: node,
+        method: 'GET',
+        command: query
+      });
+
+      const endTime = Date.now();
+      const executionTimeMs = endTime - startTime;
+      
+      console.log('Query execution result:', result);
+      setExecutionResult(result);
+      setExecutionError(null);
+      setExecutionTime(executionTimeMs);
+    } catch (err) {
+      console.error('Query execution error:', err);
+      setExecutionError(`Execution failed: ${err.message}`);
+      setExecutionResult(null);
+      setExecutionTime(null);
+    } finally {
+      setExecuting(false);
+    }
+  };
+
   const clearQuery = () => {
     setSelectedDatabase('');
     setSelectedTable('');
     setSelectedColumns([]);
     setQuery('');
     setWhereClause('');
+    setWhereConditions([]);
+    setPeriods([]);
     setGroupBy('');
     setOrderBy('');
     setLimit('');
@@ -231,6 +394,14 @@ const SqlQueryGenerator = ({ node }) => {
     setIncrementsUnit('minute');
     setIncrementsInterval(1);
     setIncrementsDateColumn('');
+    setExecutionResult(null);
+    setExecutionError(null);
+  };
+
+  const clearResults = () => {
+    setExecutionResult(null);
+    setExecutionError(null);
+    setExecutionTime(null);
   };
 
   const addAggregation = () => {
@@ -250,9 +421,94 @@ const SqlQueryGenerator = ({ node }) => {
   };
 
   const updateAggregation = (id, field, value) => {
-    setAggregations(aggregations.map(agg => 
-      agg.id === id ? { ...agg, [field]: value } : agg
+    setAggregations(aggregations.map(agg => {
+      if (agg.id === id) {
+        const updatedAgg = { ...agg, [field]: value };
+        
+        // If updating the column and it's a date/time column, ensure function is valid
+        if (field === 'column' && isDateColumn(value)) {
+          if (updatedAgg.function !== 'MIN' && updatedAgg.function !== 'MAX') {
+            updatedAgg.function = 'MIN'; // Default to MIN for date/time columns
+          }
+        }
+        
+        return updatedAgg;
+      }
+      return agg;
+    }));
+  };
+
+  const getAggregationPreview = (agg) => {
+    if (!agg.column || !agg.function) return '';
+    const alias = agg.alias || `${agg.function.toLowerCase()}_${agg.column}`;
+    return `${agg.function}(${agg.column}) as ${alias}`;
+  };
+
+  const addWhereCondition = () => {
+    const newCondition = {
+      id: Date.now(),
+      column: '',
+      operator: '=',
+      value: ''
+    };
+    setWhereConditions([...whereConditions, newCondition]);
+  };
+
+  const removeWhereCondition = (id) => {
+    setWhereConditions(whereConditions.filter(condition => condition.id !== id));
+  };
+
+  const updateWhereCondition = (id, field, value) => {
+    setWhereConditions(whereConditions.map(condition => 
+      condition.id === id ? { ...condition, [field]: value } : condition
     ));
+  };
+
+  const setNowValue = (id) => {
+    updateWhereCondition(id, 'value', 'NOW()');
+  };
+
+  const isDateColumn = (columnName) => {
+    const column = columns.find(col => (col.column_name || col.name) === columnName);
+    if (!column) return false;
+    const type = (column.data_type || column.type || '').toLowerCase();
+    return type.includes('date') || type.includes('time') || type.includes('timestamp');
+  };
+
+  const addPeriod = () => {
+    const newPeriod = {
+      id: Date.now(),
+      timeScale: 'hour',
+      amount: 1,
+      startValue: 'NOW()',
+      column: ''
+    };
+    setPeriods([...periods, newPeriod]);
+  };
+
+  const removePeriod = (id) => {
+    setPeriods(periods.filter(period => period.id !== id));
+  };
+
+  const updatePeriod = (id, field, value) => {
+    setPeriods(periods.map(period => 
+      period.id === id ? { ...period, [field]: value } : period
+    ));
+  };
+
+  const setPeriodNowValue = (id) => {
+    updatePeriod(id, 'startValue', 'NOW()');
+  };
+
+  const getPeriodPreview = (period) => {
+    if (!period.timeScale || !period.amount || !period.startValue || !period.column) return '';
+    let startValue = period.startValue;
+    if (period.startValue === 'NOW()') {
+      startValue = 'NOW()';
+    } else if (typeof period.startValue === 'string' && !period.startValue.startsWith('NOW()')) {
+      startValue = `'${period.startValue}'`;
+    }
+    return `period(${period.timeScale}, ${period.amount}, ${startValue}, ${period.column})`;
   };
 
   const addJoin = () => {
@@ -399,34 +655,17 @@ const SqlQueryGenerator = ({ node }) => {
                   type="checkbox"
                   checked={useIncrements}
                   onChange={(e) => setUseIncrements(e.target.checked)}
+                  disabled={periods.length > 0}
                 />
                 Use Increments Function
+                {periods.length > 0 && (
+                  <span className="conflict-warning"> (Cannot use with periods)</span>
+                )}
               </label>
             </div>
             
             {useIncrements && (
               <div className="increments-config">
-                <div className="option-group">
-                  <label>Date/Time Column:</label>
-                  <select 
-                    value={incrementsDateColumn} 
-                    onChange={(e) => setIncrementsDateColumn(e.target.value)}
-                    disabled={!selectedTable}
-                  >
-                    <option value="">Select Date Column</option>
-                    {columns
-                      .filter(col => {
-                        const type = (col.data_type || col.type || '').toLowerCase();
-                        return type.includes('date') || type.includes('time') || type.includes('timestamp');
-                      })
-                      .map((col, index) => (
-                        <option key={index} value={col.column_name || col.name}>
-                          {col.column_name || col.name} ({col.data_type || col.type})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                
                 <div className="option-group">
                   <label>Time Unit:</label>
                   <select value={incrementsUnit} onChange={(e) => setIncrementsUnit(e.target.value)}>
@@ -451,9 +690,35 @@ const SqlQueryGenerator = ({ node }) => {
                   />
                 </div>
                 
+                <div className="option-group">
+                  <label>Date/Time Column:</label>
+                  <select 
+                    value={incrementsDateColumn} 
+                    onChange={(e) => setIncrementsDateColumn(e.target.value)}
+                    disabled={!selectedTable}
+                  >
+                    <option value="">Select Date Column</option>
+                    {columns
+                      .filter(col => {
+                        const type = (col.data_type || col.type || '').toLowerCase();
+                        return type.includes('date') || type.includes('time') || type.includes('timestamp');
+                      })
+                      .map((col, index) => (
+                        <option key={index} value={col.column_name || col.name}>
+                          {col.column_name || col.name} ({col.data_type || col.type})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                
                 <div className="increments-info">
-                  <p><strong>Function:</strong> <code>increments({incrementsDateColumn || 'date_column'}, {incrementsInterval}, {incrementsUnit})</code></p>
-                  <p><em>Creates time buckets for time-series analysis. Example: increments(timestamp, 10, minute) creates 10-minute intervals.</em></p>
+                  <p><strong>Function:</strong> <code>increments({incrementsUnit || 'minute'}, {incrementsInterval}, {incrementsDateColumn || 'date_column'})</code></p>
+                  <p><em>Creates time buckets for time-series analysis. Automatically adds min() and max() of the selected date column.</em></p>
+                  {useIncrements && aggregations.length === 0 && (
+                    <p className="warning-message">
+                      <strong>⚠️ Warning:</strong> Increments requires at least one aggregated column. Please add an aggregation above.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -471,35 +736,161 @@ const SqlQueryGenerator = ({ node }) => {
           
           {showAdvanced && (
             <div className="advanced-options">
-              {/* <div className="option-group">
-                <label>WHERE Clause:</label>
-                <input
-                  type="text"
-                  value={whereClause}
-                  onChange={(e) => setWhereClause(e.target.value)}
-                  placeholder="e.g., status = 'active' AND created_date > '2024-01-01'"
-                />
+              <div className="where-section">
+                <div className="section-header">
+                  <h4>WHERE Conditions</h4>
+                  <button onClick={addWhereCondition} className="btn-secondary">Add Condition</button>
+                </div>
+                <p className="section-description">
+                  Add filtering conditions to your query. Multiple conditions are combined with AND.
+                </p>
+                {whereConditions.map(condition => (
+                  <div key={condition.id} className="where-condition-item">
+                    <div className="controls-row">
+                      <select
+                        value={condition.column}
+                        onChange={(e) => updateWhereCondition(condition.id, 'column', e.target.value)}
+                      >
+                        <option value="">Select Column</option>
+                        {columns.map(col => (
+                          <option key={col.column_name || col.name} value={col.column_name || col.name}>
+                            {col.column_name || col.name} ({col.data_type || col.type})
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={condition.operator}
+                        onChange={(e) => updateWhereCondition(condition.id, 'operator', e.target.value)}
+                      >
+                        <option value="=">=</option>
+                        <option value="!=">!=</option>
+                        <option value=">">{'>'}</option>
+                        <option value=">=">{'>='}</option>
+                        <option value="<">{'<'}</option>
+                        <option value="<=">{'<='}</option>
+                        <option value="LIKE">LIKE</option>
+                        <option value="IN">IN</option>
+                      </select>
+                      <div className="value-input-group">
+                        <input
+                          type="text"
+                          value={condition.value}
+                          onChange={(e) => updateWhereCondition(condition.id, 'value', e.target.value)}
+                          placeholder="Enter value"
+                        />
+                        {isDateColumn(condition.column) && (
+                          <button
+                            type="button"
+                            onClick={() => setNowValue(condition.id)}
+                            className="btn-now"
+                            title="Set to NOW()"
+                          >
+                            NOW()
+                          </button>
+                        )}
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeWhereCondition(condition.id);
+                        }} 
+                        className="btn-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {condition.column && condition.operator && condition.value && (
+                      <div className="where-preview">
+                        <code>{condition.column} {condition.operator} {condition.value === 'NOW()' ? 'NOW()' : `'${condition.value}'`}</code>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
               
-              <div className="option-group">
-                <label>GROUP BY:</label>
-                <input
-                  type="text"
-                  value={groupBy}
-                  onChange={(e) => setGroupBy(e.target.value)}
-                  placeholder="e.g., department, status"
-                />
+              <div className="periods-section">
+                <div className="section-header">
+                  <h4>Period Conditions</h4>
+                  <button onClick={addPeriod} className="btn-secondary" disabled={useIncrements}>Add Period</button>
+                </div>
+                <p className="section-description">
+                  Add period conditions for time-based filtering. Periods are combined with WHERE conditions using AND.
+                  {useIncrements && (
+                    <span className="conflict-warning"> Cannot use with increments function.</span>
+                  )}
+                </p>
+                {periods.map(period => (
+                  <div key={period.id} className="period-item">
+                    <div className="controls-row">
+                      <select
+                        value={period.timeScale}
+                        onChange={(e) => updatePeriod(period.id, 'timeScale', e.target.value)}
+                      >
+                        <option value="second">Second</option>
+                        <option value="minute">Minute</option>
+                        <option value="hour">Hour</option>
+                        <option value="day">Day</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="year">Year</option>
+                      </select>
+                      <input
+                        type="number"
+                        value={period.amount}
+                        onChange={(e) => updatePeriod(period.id, 'amount', parseInt(e.target.value) || 1)}
+                        placeholder="Amount"
+                        min="1"
+                        style={{ maxWidth: '100px' }}
+                      />
+                      <div className="value-input-group">
+                        <input
+                          type="text"
+                          value={period.startValue}
+                          onChange={(e) => updatePeriod(period.id, 'startValue', e.target.value)}
+                          placeholder="Start value (e.g., NOW(), '2024-01-01')"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPeriodNowValue(period.id)}
+                          className="btn-now"
+                          title="Set to NOW()"
+                        >
+                          NOW()
+                        </button>
+                      </div>
+                      <select
+                        value={period.column}
+                        onChange={(e) => updatePeriod(period.id, 'column', e.target.value)}
+                      >
+                        <option value="">Select Date Column</option>
+                        {columns
+                          .filter(col => isDateColumn(col.column_name || col.name))
+                          .map(col => (
+                            <option key={col.column_name || col.name} value={col.column_name || col.name}>
+                              {col.column_name || col.name} ({col.data_type || col.type})
+                            </option>
+                          ))}
+                      </select>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removePeriod(period.id);
+                        }} 
+                        className="btn-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {period.timeScale && period.amount && period.startValue && period.column && (
+                      <div className="period-preview">
+                        <code>{getPeriodPreview(period)}</code>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              
-              <div className="option-group">
-                <label>ORDER BY:</label>
-                <input
-                  type="text"
-                  value={orderBy}
-                  onChange={(e) => setOrderBy(e.target.value)}
-                  placeholder="e.g., created_date DESC"
-                />
-              </div> */}
               
               <div className="option-group">
                 <label>LIMIT:</label>
@@ -514,45 +905,72 @@ const SqlQueryGenerator = ({ node }) => {
 
               <div className="aggregations-section">
                 <div className="section-header">
-                  <h4>Aggregations</h4>
+                  <h4>Aggregations (Additional Columns)</h4>
                   <button onClick={addAggregation} className="btn-secondary">Add Aggregation</button>
                 </div>
+                <p className="section-description">
+                  Add aggregation functions as separate columns. You can have multiple aggregations on the same column (e.g., min(timestamp), max(timestamp)).
+                </p>
                 {aggregations.map(agg => (
                   <div key={agg.id} className="aggregation-item">
-                    <select
-                      value={agg.function}
-                      onChange={(e) => updateAggregation(agg.id, 'function', e.target.value)}
-                    >
-                      <option value="COUNT">COUNT</option>
-                      <option value="SUM">SUM</option>
-                      <option value="AVG">AVG</option>
-                      <option value="MIN">MIN</option>
-                      <option value="MAX">MAX</option>
-                    </select>
-                    <select
-                      value={agg.column}
-                      onChange={(e) => updateAggregation(agg.id, 'column', e.target.value)}
-                    >
-                      {selectedColumns.map(col => (
-                        <option key={col} value={col}>{col}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={agg.alias}
-                      onChange={(e) => updateAggregation(agg.id, 'alias', e.target.value)}
-                      placeholder="Alias (optional)"
-                    />
-                    <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        removeAggregation(agg.id);
-                      }} 
-                      className="btn-remove"
-                    >
-                      ×
-                    </button>
+                    <div className="controls-row">
+                      <select
+                        value={agg.function}
+                        onChange={(e) => updateAggregation(agg.id, 'function', e.target.value)}
+                      >
+                        {isDateColumn(agg.column) ? (
+                          <>
+                            <option value="MIN">MIN (Date/Time)</option>
+                            <option value="MAX">MAX (Date/Time)</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="COUNT">COUNT</option>
+                            <option value="SUM">SUM</option>
+                            <option value="AVG">AVG</option>
+                            <option value="MIN">MIN</option>
+                            <option value="MAX">MAX</option>
+                          </>
+                        )}
+                      </select>
+                      <select
+                        value={agg.column}
+                        onChange={(e) => updateAggregation(agg.id, 'column', e.target.value)}
+                      >
+                        <option value="">Select Column</option>
+                        {columns.map(col => (
+                          <option key={col.column_name || col.name} value={col.column_name || col.name}>
+                            {col.column_name || col.name} ({col.data_type || col.type})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={agg.alias}
+                        onChange={(e) => updateAggregation(agg.id, 'alias', e.target.value)}
+                        placeholder="Alias (optional)"
+                      />
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeAggregation(agg.id);
+                        }} 
+                        className="btn-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {agg.column && agg.function && (
+                      <div className="aggregation-preview">
+                        <code>{getAggregationPreview(agg)}</code>
+                        {isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX' && (
+                          <div className="warning-message">
+                            <strong>⚠️ Warning:</strong> Date/time columns only support MIN and MAX functions.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -621,11 +1039,95 @@ const SqlQueryGenerator = ({ node }) => {
             >
               Copy Query
             </button>
+            <button 
+              onClick={executeQuery} 
+              disabled={!query.trim() || executing}
+              className="btn-execute"
+            >
+              {executing ? (
+                <>
+                  <span className="spinner">⏳</span> Executing...
+                </>
+              ) : (
+                'Execute Query'
+              )}
+            </button>
             <button onClick={clearQuery} className="btn-secondary">
               Clear Query
             </button>
           </div>
         </div>
+
+        {/* Execution Results */}
+        {executionError && (
+          <div className="execution-error">
+            <h3>Execution Error</h3>
+            <div className="error-content">
+              <strong>Error:</strong> {executionError}
+            </div>
+          </div>
+        )}
+
+        {executionResult && (
+          <div className="execution-results">
+            <h3>Query Results</h3>
+            {executionTime && (
+              <p className="execution-time">
+                <strong>Execution Time:</strong> {executionTime}ms
+              </p>
+            )}
+            <div className="results-content">
+              {executionResult.type === 'table' && (
+                <div className="table-results">
+                  <p><strong>Type:</strong> Table Data</p>
+                  <p><strong>Rows:</strong> {executionResult.data ? executionResult.data.length : 0}</p>
+                  {executionResult.data && executionResult.data.length > 0 && executionResult.data[0] && (
+                    <p><strong>Columns:</strong> {Object.keys(executionResult.data[0]).length}</p>
+                  )}
+                  {executionResult.data && executionResult.data.length > 0 && executionResult.data[0] ? (
+                    <div className="table-container">
+                      <DataTable data={executionResult.data} />
+                    </div>
+                  ) : (
+                    <div className="no-data-message">
+                      <p>No data returned from query.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {executionResult.type === 'json' && (
+                <div className="json-results">
+                  <p><strong>Type:</strong> JSON Response</p>
+                  <pre className="results-json">
+                    {JSON.stringify(executionResult.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {executionResult.type === 'blobs' && (
+                <div className="blob-results">
+                  <p><strong>Type:</strong> Blob Data</p>
+                  <p><strong>Blobs:</strong> {executionResult.data ? executionResult.data.length : 0}</p>
+                  <pre className="results-json">
+                    {JSON.stringify(executionResult.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {!executionResult.type && (
+                <div className="string-results">
+                  <p><strong>Type:</strong> String Response</p>
+                  <pre className="results-text">
+                    {executionResult.data}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="results-actions">
+              <button onClick={clearResults} className="btn-secondary">
+                Clear Results
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Error Display */}
         {error && (

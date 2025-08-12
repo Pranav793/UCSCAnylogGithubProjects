@@ -346,10 +346,12 @@ export async function deletePresetGroup({ groupId, groupName }) {
         const userId = getUserId();
 
         const requestBody = {
-            token:{jwt: userId},
-            group_id: { group_id: groupId },
-            group: { group_name: groupName }
+            token: {jwt: userId},
+            group_id: {group_id: groupId},
+            group: {group_name: groupName}
         };
+
+        console.log("Delete group request body:", requestBody);
 
         const response = await fetch(`${API_URL}/auth/delete-preset-group/`, {
             method: 'POST',
@@ -360,10 +362,13 @@ export async function deletePresetGroup({ groupId, groupName }) {
         });
 
         if (!response.ok) {
-            throw new Error(`Server responded with status ${response.status}`);
+            const errorText = await response.text();
+            console.error("Delete group response error:", response.status, errorText);
+            throw new Error(`Server responded with status ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
+        console.log("Delete group response:", data);
         return data;
     } catch (error) {
         console.error('Error deleting preset group:', error);
