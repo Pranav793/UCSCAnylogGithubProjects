@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getUser, logout } from '../services/file_auth';
 import { getBookmarks, deleteBookmarkedNode, updateBookmarkDescription } from '../services/file_auth';
 import BookmarkTable from '../components/BookmarkTable';
@@ -6,6 +7,7 @@ import BookmarkTable from '../components/BookmarkTable';
 // import '../styles/UserProfile.css';
 
 const UserProfile = ({ onBookmarkRefresh }) => {
+    const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -73,10 +75,8 @@ const UserProfile = ({ onBookmarkRefresh }) => {
     const handleLogout = async () => {
         try {
             await logout();
-            // Option A: reload the app
-            window.location.reload();
-            // Option B: navigate to login page
-            // navigate('/login');
+            // Redirect to login page after successful logout
+            navigate('/login');
         } catch (err) {
             console.error('Logout failed:', err);
             alert('Could not log out. Please try again.');

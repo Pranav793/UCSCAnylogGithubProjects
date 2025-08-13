@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   remote-cli-new:
     image: gui:latest
@@ -12,19 +14,13 @@ services:
       - "3001:3001"
       - "8000:8000"
     volumes:
-      - gui-vol:/app/CLI/Local-CLI/local-cli-backend/static/
+      - cli-static:/app/CLI/Local-CLI/local-cli-backend/static
+
   edgelake-node:
     image: anylogco/edgelake:latest
-    restart: always
     container_name: edgelake-node
-    environment:
-      - INIT_TYPE=prod
-      - NODE_TYPE=generic
+    restart: always
     stdin_open: true
-#    cap_add:
-#      - NET_ADMIN
-#    devices:
-#      - "/dev/net/tun:/dev/net/tun"
     tty: true
     networks:
       - mynetwork
@@ -37,16 +33,20 @@ services:
       - edgelake-node-blockchain:/app/EdgeLake/blockchain
       - edgelake-node-data:/app/EdgeLake/data
       - edgelake-node-local-scripts:/app/deployment-scripts
-      - gui-vol:/app/CLI/Local-CLI/local-cli-backend/static/
+      - cli-static:/app/CLI/Local-CLI/local-cli-backend/static
+      - ./CLI/Local-CLI/local-cli-backend/presets.json:/app/CLI/Local-CLI/local-cli-backend/presets.json
+      - ./CLI/Local-CLI/local-cli-backend/preset_groups.json:/app/CLI/Local-CLI/local-cli-backend/preset_groups.json
+      - ./CLI/Local-CLI/local-cli-backend/bookmarks.json:/app/CLI/Local-CLI/local-cli-backend/bookmarks.json
+      - ./CLI/Local-CLI/local-cli-backend/users.json:/app/CLI/Local-CLI/local-cli-backend/users.json
+
 volumes:
+  nebula-overlay:
   edgelake-node-anylog:
   edgelake-node-blockchain:
   edgelake-node-data:
   edgelake-node-local-scripts:
-  nebula-overlay:
-  remote-cli:
-  remote-cli-current:
-  gui-vol:
+  cli-static:
+
 networks:
   mynetwork:
     driver: bridge

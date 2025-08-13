@@ -71,6 +71,30 @@
       "firstname": "peter",
       "lastname": "p",
       "created_at": "2025-08-06T12:32:28.053369"
+    },
+    {
+      "id": "bf244521-3ff1-4db3-b77f-320d77b28c7b",
+      "email": "preset_test_1754953756@example.com",
+      "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "firstname": "Preset",
+      "lastname": "Test",
+      "created_at": "2025-08-11T16:09:16.738986"
+    },
+    {
+      "id": "5cb6cbeb-4c65-4ff9-a9f8-b2a77d888d05",
+      "email": "delete_test_1754953813@example.com",
+      "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "firstname": "Delete",
+      "lastname": "Test",
+      "created_at": "2025-08-11T16:10:13.206881"
+    },
+    {
+      "id": "b0eca12b-24c1-4a08-9253-eab2490f988c",
+      "email": "pranavsp2003@gmail.com",
+      "password": "b64f676dc50ae3ee57a9d6a0042eabc94f00ba3818081991bc35707a1d8c44fe",
+      "firstname": "Pranav",
+      "lastname": "p",
+      "created_at": "2025-08-12T13:08:35.611008"
     }
   ]
 }

@@ -15,18 +15,20 @@ function App() {
   // const isAuthenticated = isLoggedIn();
   // console.log("isAuthenticated in APP.js:", isAuthenticated);
 
+  
+
   return (
     <Router>
       <Routes>
-//        <Route path="/login" element={<Login />} />
-//        <Route path="/signup" element={<Signup />} />
-//        {/* Protected Dashboard Route */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        {/* Protected Dashboard Route */}
         <Route
           path="/dashboard/*"
           element={isLoggedIn() ? <Dashboard /> : <Navigate to="/dashboard" />}
         />
-//        {/* Default Route */}
-//        <Route path="*" element={<Navigate to={isLoggedIn() ? "/dashboard/client" : "/login"} />} />
+        {/* Default Route */}
+        <Route path="*" element={<Navigate to={isLoggedIn() ? "/dashboard/client" : "/login"} />} />
       </Routes>
     </Router>
   );
