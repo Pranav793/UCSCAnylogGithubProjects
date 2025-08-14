@@ -35,6 +35,18 @@ const SqlQueryGenerator = ({ node }) => {
   const [aggregations, setAggregations] = useState([]);
   const [joins, setJoins] = useState([]);
   
+  // Include tables state for cross-database queries
+  const [includeTables, setIncludeTables] = useState([]);
+  
+  // Extend fields state for additional query fields
+  const [extendFields, setExtendFields] = useState([]);
+  
+  // Column selection mode state
+  const [columnMode, setColumnMode] = useState('columns'); // 'columns' or 'aggregations'
+  
+  // Time-series analysis mode state
+  const [timeSeriesMode, setTimeSeriesMode] = useState('none'); // 'none', 'increments', or 'periods'
+  
   // Increments function state
   const [useIncrements, setUseIncrements] = useState(false);
   const [incrementsUnit, setIncrementsUnit] = useState('minute');
@@ -77,7 +89,7 @@ const SqlQueryGenerator = ({ node }) => {
   // Update query when selections change
   useEffect(() => {
     buildQuery();
-  }, [selectedColumns, whereConditions, periods, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn]);
+  }, [selectedColumns, whereConditions, periods, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn, columnMode, timeSeriesMode, includeTables, extendFields]);
 
   const fetchDatabases = async () => {
     setLoading(true);
@@ -124,9 +136,11 @@ const SqlQueryGenerator = ({ node }) => {
 
   const buildQuery = () => {
     // Check if we have any content to build a query with
-    const hasRegularColumns = selectedColumns.length > 0;
-    const hasAggregations = aggregations.length > 0 && aggregations.some(agg => {
+    const hasRegularColumns = columnMode === 'columns' && selectedColumns.length > 0;
+    const hasAggregations = columnMode === 'aggregations' && aggregations.length > 0 && aggregations.some(agg => {
       if (!agg.column || !agg.function) return false;
+      // Check if column is aggregatable
+      if (!isAggregatableColumn(agg.column)) return false;
       // For date/time columns, only MIN and MAX are valid
       if (isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX') return false;
       return true;
@@ -164,6 +178,20 @@ const SqlQueryGenerator = ({ node }) => {
       anylogQuery += ` timezone = ${timezone}`;
     }
     
+    // Add include tables if specified
+    const validIncludeTables = includeTables.filter(table => table.tableName.trim() !== '');
+    if (validIncludeTables.length > 0) {
+      const tableNames = validIncludeTables.map(table => table.tableName.trim());
+      anylogQuery += ` and include=(${tableNames.join(', ')})`;
+    }
+    
+    // Add extend fields if specified
+    const validExtendFields = extendFields.filter(field => field.fieldName.trim() !== '');
+    if (validExtendFields.length > 0) {
+      const fieldNames = validExtendFields.map(field => field.fieldName.trim());
+      anylogQuery += ` and extend=(${fieldNames.join(', ')})`;
+    }
+    
     // Start the SELECT statement
     anylogQuery += ' "';
     
@@ -185,37 +213,52 @@ const SqlQueryGenerator = ({ node }) => {
       selectClause += `min(${incrementsDateColumn}), max(${incrementsDateColumn})`;
     }
     
-    // Add selected columns (without aggregations)
-    const regularColumns = selectedColumns.filter(col => {
-      // Check if this column has any aggregations
-      const hasAggregation = aggregations.some(agg => agg.column === col);
-      return !hasAggregation;
-    });
-    
-    if (regularColumns.length > 0) {
+    // Add selected columns (only in columns mode)
+    if (hasRegularColumns) {
       if (selectClause.length > 0) {
         selectClause += ', ';
       }
-      selectClause += regularColumns.join(', ');
+      selectClause += selectedColumns.join(', ');
     }
     
-    // Add aggregations as separate columns
-    aggregations.forEach((agg, index) => {
-      if (agg.column && agg.function) {
-        // Validate that date/time columns only use MIN or MAX
-        if (isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX') {
-          return; // Skip invalid aggregations
+    // Add aggregations as separate columns (only in aggregations mode)
+    if (hasAggregations) {
+      aggregations.forEach((agg, index) => {
+        if (agg.function) {
+          // Handle special functions like count(*)
+          if (agg.isSpecialFunction && agg.column === '*') {
+            // Add comma if there are previous columns
+            if (selectClause.length > 0) {
+              selectClause += ', ';
+            }
+            
+            const alias = agg.alias || `${agg.function.toLowerCase()}_all`;
+            selectClause += `${agg.function}(*) as ${alias}`;
+            return;
+          }
+          
+          // Handle regular column-based aggregations
+          if (agg.column) {
+            // Validate that column is aggregatable
+            if (!isAggregatableColumn(agg.column)) {
+              return; // Skip non-aggregatable columns
+            }
+            // Validate that date/time columns only use MIN or MAX
+            if (isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX') {
+              return; // Skip invalid aggregations
+            }
+            
+            // Add comma if there are previous columns
+            if (selectClause.length > 0) {
+              selectClause += ', ';
+            }
+            
+            const alias = agg.alias || `${agg.function.toLowerCase()}_${agg.column}`;
+            selectClause += `${agg.function}(${agg.column}) as ${alias}`;
+          }
         }
-        
-        // Add comma if there are previous columns
-        if (selectClause.length > 0) {
-          selectClause += ', ';
-        }
-        
-        const alias = agg.alias || `${agg.function.toLowerCase()}_${agg.column}`;
-        selectClause += `${agg.function}(${agg.column}) as ${alias}`;
-      }
-    });
+      });
+    }
     
     anylogQuery += selectClause;
     
@@ -241,7 +284,7 @@ const SqlQueryGenerator = ({ node }) => {
       
       // Add regular WHERE conditions
       if (validConditions.length > 0) {
-        const conditionStrings = validConditions.map(condition => {
+        const conditionStrings = validConditions.map((condition, index) => {
           // Handle different value types
           let value = condition.value;
           if (condition.value === 'NOW()') {
@@ -250,7 +293,16 @@ const SqlQueryGenerator = ({ node }) => {
             // Quote string values unless they're functions
             value = `'${condition.value}'`;
           }
-          return `${condition.column} ${condition.operator} ${value}`;
+          
+          const conditionString = `${condition.column} ${condition.operator} ${value}`;
+          
+          // Add logical operator for all conditions except the first one
+          if (index > 0) {
+            const logicalOp = condition.logicalOperator || 'AND';
+            return `${logicalOp} ${conditionString}`;
+          }
+          
+          return conditionString;
         });
         whereParts.push(...conditionStrings);
       }
@@ -271,7 +323,7 @@ const SqlQueryGenerator = ({ node }) => {
       }
       
       if (whereParts.length > 0) {
-        anylogQuery += ` WHERE ${whereParts.join(' AND ')}`;
+        anylogQuery += ` WHERE ${whereParts.join(' ')}`;
       }
     }
     
@@ -312,6 +364,33 @@ const SqlQueryGenerator = ({ node }) => {
 
   const handleClearColumns = () => {
     setSelectedColumns([]);
+  };
+
+  const handleColumnModeChange = (mode) => {
+    setColumnMode(mode);
+    // Clear the other mode's data when switching
+    if (mode === 'columns') {
+      setAggregations([]);
+    } else {
+      setSelectedColumns([]);
+    }
+  };
+
+  const handleTimeSeriesModeChange = (mode) => {
+    setTimeSeriesMode(mode);
+    // Clear the other mode's data when switching
+    if (mode === 'increments') {
+      setPeriods([]);
+      setUseIncrements(true);
+    } else if (mode === 'periods') {
+      setUseIncrements(false);
+      setIncrementsDateColumn('');
+    } else {
+      // 'none' mode
+      setUseIncrements(false);
+      setIncrementsDateColumn('');
+      setPeriods([]);
+    }
   };
 
   const copyQuery = () => {
@@ -405,11 +484,17 @@ const SqlQueryGenerator = ({ node }) => {
   };
 
   const addAggregation = () => {
+    // Find the first aggregatable column
+    const firstAggregatableColumn = columns.find(col => 
+      isAggregatableColumn(col.column_name || col.name)
+    );
+    
     const newAgg = {
       id: Date.now(),
-      column: selectedColumns[0] || '',
+      column: firstAggregatableColumn ? (firstAggregatableColumn.column_name || firstAggregatableColumn.name) : '',
       function: 'COUNT',
-      alias: ''
+      alias: '',
+      isSpecialFunction: false // New field to track special functions like count(*)
     };
     setAggregations([...aggregations, newAgg]);
   };
@@ -425,10 +510,33 @@ const SqlQueryGenerator = ({ node }) => {
       if (agg.id === id) {
         const updatedAgg = { ...agg, [field]: value };
         
-        // If updating the column and it's a date/time column, ensure function is valid
-        if (field === 'column' && isDateColumn(value)) {
-          if (updatedAgg.function !== 'MIN' && updatedAgg.function !== 'MAX') {
-            updatedAgg.function = 'MIN'; // Default to MIN for date/time columns
+        // If updating the function, check if it's a special function
+        if (field === 'function') {
+          if (value === 'COUNT' && updatedAgg.column === '*') {
+            updatedAgg.isSpecialFunction = true;
+          } else {
+            updatedAgg.isSpecialFunction = false;
+          }
+        }
+        
+        // If updating the column, validate it's aggregatable
+        if (field === 'column') {
+          // Special case for count(*)
+          if (value === '*') {
+            updatedAgg.isSpecialFunction = true;
+            updatedAgg.function = 'COUNT';
+          } else {
+            updatedAgg.isSpecialFunction = false;
+            // If it's a date/time column, ensure function is valid
+            if (isDateColumn(value)) {
+              if (updatedAgg.function !== 'MIN' && updatedAgg.function !== 'MAX') {
+                updatedAgg.function = 'MIN'; // Default to MIN for date/time columns
+              }
+            }
+            // If it's not an aggregatable column, clear the function
+            else if (!isAggregatableColumn(value)) {
+              updatedAgg.function = '';
+            }
           }
         }
         
@@ -439,7 +547,16 @@ const SqlQueryGenerator = ({ node }) => {
   };
 
   const getAggregationPreview = (agg) => {
-    if (!agg.column || !agg.function) return '';
+    if (!agg.function) return '';
+    
+    // Handle special functions like count(*)
+    if (agg.isSpecialFunction && agg.column === '*') {
+      const alias = agg.alias || `${agg.function.toLowerCase()}_all`;
+      return `${agg.function}(*) as ${alias}`;
+    }
+    
+    // Handle regular column-based aggregations
+    if (!agg.column) return '';
     const alias = agg.alias || `${agg.function.toLowerCase()}_${agg.column}`;
     return `${agg.function}(${agg.column}) as ${alias}`;
   };
@@ -449,7 +566,8 @@ const SqlQueryGenerator = ({ node }) => {
       id: Date.now(),
       column: '',
       operator: '=',
-      value: ''
+      value: '',
+      logicalOperator: 'AND' // Default to AND
     };
     setWhereConditions([...whereConditions, newCondition]);
   };
@@ -473,6 +591,19 @@ const SqlQueryGenerator = ({ node }) => {
     if (!column) return false;
     const type = (column.data_type || column.type || '').toLowerCase();
     return type.includes('date') || type.includes('time') || type.includes('timestamp');
+  };
+
+  const isNumericColumn = (columnName) => {
+    const column = columns.find(col => (col.column_name || col.name) === columnName);
+    if (!column) return false;
+    const type = (column.data_type || column.type || '').toLowerCase();
+    return type.includes('int') || type.includes('float') || type.includes('double') || 
+           type.includes('decimal') || type.includes('numeric') || type.includes('real') ||
+           type.includes('bigint') || type.includes('smallint') || type.includes('tinyint');
+  };
+
+  const isAggregatableColumn = (columnName) => {
+    return isDateColumn(columnName) || isNumericColumn(columnName);
   };
 
   const addPeriod = () => {
@@ -533,6 +664,52 @@ const SqlQueryGenerator = ({ node }) => {
     ));
   };
 
+  const addIncludeTable = () => {
+    const newIncludeTable = {
+      id: Date.now(),
+      tableName: ''
+    };
+    setIncludeTables([...includeTables, newIncludeTable]);
+  };
+
+  const removeIncludeTable = (id) => {
+    setIncludeTables(includeTables.filter(table => table.id !== id));
+  };
+
+  const updateIncludeTable = (id, field, value) => {
+    setIncludeTables(includeTables.map(table => 
+      table.id === id ? { ...table, [field]: value } : table
+    ));
+  };
+
+  const addExtendField = () => {
+    const newExtendField = {
+      id: Date.now(),
+      fieldName: ''
+    };
+    setExtendFields([...extendFields, newExtendField]);
+  };
+
+  const removeExtendField = (id) => {
+    setExtendFields(extendFields.filter(field => field.id !== id));
+  };
+
+  const updateExtendField = (id, field, value) => {
+    setExtendFields(extendFields.map(fieldItem => 
+      fieldItem.id === id ? { ...fieldItem, [field]: value } : fieldItem
+    ));
+  };
+
+  const populateDefaultExtendFields = () => {
+    const defaultFields = [
+      { id: Date.now(), fieldName: '+ip' },
+      { id: Date.now() + 1, fieldName: '+overlay_ip' },
+      { id: Date.now() + 2, fieldName: '+hostname' },
+      { id: Date.now() + 3, fieldName: '@table_name' }
+    ];
+    setExtendFields(defaultFields);
+  };
+
   return (
     <div className="sql-query-generator">
       <h2>AnyLog Query Generator</h2>
@@ -581,28 +758,140 @@ const SqlQueryGenerator = ({ node }) => {
         {selectedTable && (
           <div className="columns-panel">
             <div className="columns-header">
-              <h3>Columns</h3>
-              <div className="column-actions">
-                <button onClick={handleSelectAllColumns} className="btn-secondary">
-                  Select All
+              <h3>Column Selection</h3>
+              <div className="column-mode-toggle">
+                <button 
+                  className={`mode-btn ${columnMode === 'columns' ? 'active' : ''}`}
+                  onClick={() => handleColumnModeChange('columns')}
+                >
+                  Select Columns
                 </button>
-                <button onClick={handleClearColumns} className="btn-secondary">
-                  Clear All
+                <button 
+                  className={`mode-btn ${columnMode === 'aggregations' ? 'active' : ''}`}
+                  onClick={() => handleColumnModeChange('aggregations')}
+                >
+                  Use Aggregations
                 </button>
               </div>
             </div>
-            <div className="columns-grid">
-              {columns.map((column, index) => (
-                <div 
-                  key={index} 
-                  className={`column-item ${selectedColumns.includes(column.column_name || column.name) ? 'selected' : ''}`}
-                  onClick={() => handleColumnToggle(column.column_name || column.name)}
-                >
-                  <span className="column-name">{column.column_name || column.name}</span>
-                  <span className="column-type">{column.data_type || column.type}</span>
+
+            {/* Column Selection Mode */}
+            {columnMode === 'columns' && (
+              <>
+                <div className="column-actions">
+                  <button onClick={handleSelectAllColumns} className="btn-secondary">
+                    Select All
+                  </button>
+                  <button onClick={handleClearColumns} className="btn-secondary">
+                    Clear All
+                  </button>
                 </div>
-              ))}
-            </div>
+                <div className="columns-grid">
+                  {columns.map((column, index) => (
+                    <div 
+                      key={index} 
+                      className={`column-item ${selectedColumns.includes(column.column_name || column.name) ? 'selected' : ''}`}
+                      onClick={() => handleColumnToggle(column.column_name || column.name)}
+                    >
+                      <span className="column-name">{column.column_name || column.name}</span>
+                      <span className="column-type">{column.data_type || column.type}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Aggregations Mode */}
+            {columnMode === 'aggregations' && (
+              <div className="aggregations-section">
+                <div className="section-header">
+                  <h4>Aggregations</h4>
+                  <button onClick={addAggregation} className="btn-secondary">Add Aggregation</button>
+                </div>
+                <p className="section-description">
+                  Add aggregation functions as separate columns. Only date/time and numeric columns can be aggregated. You can have multiple aggregations on the same column (e.g., min(timestamp), max(timestamp)).
+                </p>
+                {columns.filter(col => isAggregatableColumn(col.column_name || col.name)).length === 0 && (
+                  <div className="info-message">
+                    <strong>ℹ️ Info:</strong> No aggregatable columns found. You can use COUNT(*) to count all rows, or only date/time and numeric columns support other aggregations.
+                  </div>
+                )}
+                {aggregations.map(agg => (
+                  <div key={agg.id} className="aggregation-item">
+                    <div className="controls-row">
+                      <select
+                        value={agg.function}
+                        onChange={(e) => updateAggregation(agg.id, 'function', e.target.value)}
+                      >
+                        {agg.column === '*' ? (
+                          <>
+                            <option value="COUNT">COUNT</option>
+                          </>
+                        ) : isDateColumn(agg.column) ? (
+                          <>
+                            <option value="MIN">MIN (Date/Time)</option>
+                            <option value="MAX">MAX (Date/Time)</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="COUNT">COUNT</option>
+                            <option value="SUM">SUM</option>
+                            <option value="AVG">AVG</option>
+                            <option value="MIN">MIN</option>
+                            <option value="MAX">MAX</option>
+                          </>
+                        )}
+                      </select>
+                      <select
+                        value={agg.column}
+                        onChange={(e) => updateAggregation(agg.id, 'column', e.target.value)}
+                      >
+                        <option value="">Select Column</option>
+                        <option value="*">* (Count All)</option>
+                        {columns
+                          .filter(col => isAggregatableColumn(col.column_name || col.name))
+                          .map(col => (
+                            <option key={col.column_name || col.name} value={col.column_name || col.name}>
+                              {col.column_name || col.name} ({col.data_type || col.type})
+                            </option>
+                          ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={agg.alias}
+                        onChange={(e) => updateAggregation(agg.id, 'alias', e.target.value)}
+                        placeholder="Alias (optional)"
+                      />
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeAggregation(agg.id);
+                        }} 
+                        className="btn-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {(agg.function && (agg.column || agg.column === '*')) && (
+                      <div className="aggregation-preview">
+                        <code>{getAggregationPreview(agg)}</code>
+                        {agg.column !== '*' && isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX' && (
+                          <div className="warning-message">
+                            <strong>⚠️ Warning:</strong> Date/time columns only support MIN and MAX functions.
+                          </div>
+                        )}
+                        {agg.column !== '*' && !isAggregatableColumn(agg.column) && (
+                          <div className="error-message">
+                            <strong>❌ Error:</strong> This column type does not support aggregations. Only date/time and numeric columns can be aggregated.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -645,26 +934,35 @@ const SqlQueryGenerator = ({ node }) => {
           </div>
         </div>
 
-        {/* Time-Series Increments Function */}
+        {/* Time-Series Analysis */}
         <div className="increments-panel">
-          <h3>Time-Series Analysis</h3>
-          <div className="increments-controls">
-            <div className="option-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={useIncrements}
-                  onChange={(e) => setUseIncrements(e.target.checked)}
-                  disabled={periods.length > 0}
-                />
-                Use Increments Function
-                {periods.length > 0 && (
-                  <span className="conflict-warning"> (Cannot use with periods)</span>
-                )}
-              </label>
+          <div className="time-series-header">
+            <h3>Time-Series Analysis</h3>
+            <div className="time-series-mode-toggle">
+              <button 
+                className={`mode-btn ${timeSeriesMode === 'none' ? 'active' : ''}`}
+                onClick={() => handleTimeSeriesModeChange('none')}
+              >
+                None
+              </button>
+              <button 
+                className={`mode-btn ${timeSeriesMode === 'increments' ? 'active' : ''}`}
+                onClick={() => handleTimeSeriesModeChange('increments')}
+              >
+                Increments
+              </button>
+              <button 
+                className={`mode-btn ${timeSeriesMode === 'periods' ? 'active' : ''}`}
+                onClick={() => handleTimeSeriesModeChange('periods')}
+              >
+                Periods
+              </button>
             </div>
-            
-            {useIncrements && (
+          </div>
+
+          {/* Increments Mode */}
+          {timeSeriesMode === 'increments' && (
+            <div className="increments-controls">
               <div className="increments-config">
                 <div className="option-group">
                   <label>Time Unit:</label>
@@ -714,15 +1012,98 @@ const SqlQueryGenerator = ({ node }) => {
                 <div className="increments-info">
                   <p><strong>Function:</strong> <code>increments({incrementsUnit || 'minute'}, {incrementsInterval}, {incrementsDateColumn || 'date_column'})</code></p>
                   <p><em>Creates time buckets for time-series analysis. Automatically adds min() and max() of the selected date column.</em></p>
-                  {useIncrements && aggregations.length === 0 && (
+                  {timeSeriesMode === 'increments' && aggregations.length === 0 && (
                     <p className="warning-message">
                       <strong>⚠️ Warning:</strong> Increments requires at least one aggregated column. Please add an aggregation above.
                     </p>
                   )}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Periods Mode */}
+          {timeSeriesMode === 'periods' && (
+            <div className="periods-section">
+              <div className="section-header">
+                <h4>Period Conditions</h4>
+                <button onClick={addPeriod} className="btn-secondary">Add Period</button>
+              </div>
+              <p className="section-description">
+                Add period conditions for time-based filtering. Periods are combined with WHERE conditions using AND.
+              </p>
+              {periods.map(period => (
+                <div key={period.id} className="period-item">
+                  <div className="controls-row">
+                    <select
+                      value={period.timeScale}
+                      onChange={(e) => updatePeriod(period.id, 'timeScale', e.target.value)}
+                    >
+                      <option value="second">Second</option>
+                      <option value="minute">Minute</option>
+                      <option value="hour">Hour</option>
+                      <option value="day">Day</option>
+                      <option value="week">Week</option>
+                      <option value="month">Month</option>
+                      <option value="year">Year</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={period.amount}
+                      onChange={(e) => updatePeriod(period.id, 'amount', parseInt(e.target.value) || 1)}
+                      placeholder="Amount"
+                      min="1"
+                      style={{ maxWidth: '100px' }}
+                    />
+                    <div className="value-input-group">
+                      <input
+                        type="text"
+                        value={period.startValue}
+                        onChange={(e) => updatePeriod(period.id, 'startValue', e.target.value)}
+                        placeholder="Start value (e.g., NOW(), '2024-01-01')"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPeriodNowValue(period.id)}
+                        className="btn-now"
+                        title="Set to NOW()"
+                      >
+                        NOW()
+                      </button>
+                    </div>
+                    <select
+                      value={period.column}
+                      onChange={(e) => updatePeriod(period.id, 'column', e.target.value)}
+                    >
+                      <option value="">Select Date Column</option>
+                      {columns
+                        .filter(col => isDateColumn(col.column_name || col.name))
+                        .map(col => (
+                          <option key={col.column_name || col.name} value={col.column_name || col.name}>
+                            {col.column_name || col.name} ({col.data_type || col.type})
+                          </option>
+                        ))}
+                    </select>
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removePeriod(period.id);
+                      }} 
+                      className="btn-remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {period.timeScale && period.amount && period.startValue && period.column && (
+                    <div className="period-preview">
+                      <code>{getPeriodPreview(period)}</code>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Advanced Options */}
@@ -742,7 +1123,7 @@ const SqlQueryGenerator = ({ node }) => {
                   <button onClick={addWhereCondition} className="btn-secondary">Add Condition</button>
                 </div>
                 <p className="section-description">
-                  Add filtering conditions to your query. Multiple conditions are combined with AND.
+                  Add filtering conditions to your query. Multiple conditions can be combined with AND or OR operators.
                 </p>
                 {whereConditions.map(condition => (
                   <div key={condition.id} className="where-condition-item">
@@ -789,6 +1170,16 @@ const SqlQueryGenerator = ({ node }) => {
                           </button>
                         )}
                       </div>
+                      {whereConditions.length > 1 && (
+                        <select
+                          value={condition.logicalOperator || 'AND'}
+                          onChange={(e) => updateWhereCondition(condition.id, 'logicalOperator', e.target.value)}
+                          className="logical-operator-select"
+                        >
+                          <option value="AND">AND</option>
+                          <option value="OR">OR</option>
+                        </select>
+                      )}
                       <button 
                         onClick={(e) => {
                           e.preventDefault();
@@ -802,90 +1193,91 @@ const SqlQueryGenerator = ({ node }) => {
                     </div>
                     {condition.column && condition.operator && condition.value && (
                       <div className="where-preview">
-                        <code>{condition.column} {condition.operator} {condition.value === 'NOW()' ? 'NOW()' : `'${condition.value}'`}</code>
+                        <code>
+                          {whereConditions.length > 1 && whereConditions.indexOf(condition) > 0 && (
+                            <span className="logical-operator">{condition.logicalOperator || 'AND'} </span>
+                          )}
+                          {condition.column} {condition.operator} {condition.value === 'NOW()' ? 'NOW()' : `'${condition.value}'`}
+                        </code>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
               
-              <div className="periods-section">
+              <div className="include-section">
                 <div className="section-header">
-                  <h4>Period Conditions</h4>
-                  <button onClick={addPeriod} className="btn-secondary" disabled={useIncrements}>Add Period</button>
+                  <h4>Include Tables</h4>
+                  <button onClick={addIncludeTable} className="btn-secondary">Add Table</button>
                 </div>
                 <p className="section-description">
-                  Add period conditions for time-based filtering. Periods are combined with WHERE conditions using AND.
-                  {useIncrements && (
-                    <span className="conflict-warning"> Cannot use with increments function.</span>
-                  )}
+                  Include additional tables in your query. Use <code>db_name.table_name</code> format for cross-database tables.
                 </p>
-                {periods.map(period => (
-                  <div key={period.id} className="period-item">
+                {includeTables.map(table => (
+                  <div key={table.id} className="include-table-item">
                     <div className="controls-row">
-                      <select
-                        value={period.timeScale}
-                        onChange={(e) => updatePeriod(period.id, 'timeScale', e.target.value)}
-                      >
-                        <option value="second">Second</option>
-                        <option value="minute">Minute</option>
-                        <option value="hour">Hour</option>
-                        <option value="day">Day</option>
-                        <option value="week">Week</option>
-                        <option value="month">Month</option>
-                        <option value="year">Year</option>
-                      </select>
                       <input
-                        type="number"
-                        value={period.amount}
-                        onChange={(e) => updatePeriod(period.id, 'amount', parseInt(e.target.value) || 1)}
-                        placeholder="Amount"
-                        min="1"
-                        style={{ maxWidth: '100px' }}
+                        type="text"
+                        value={table.tableName}
+                        onChange={(e) => updateIncludeTable(table.id, 'tableName', e.target.value)}
+                        placeholder="e.g., wp_analog, wp_digital, db_name.table_name"
+                        className="table-name-input"
                       />
-                      <div className="value-input-group">
-                        <input
-                          type="text"
-                          value={period.startValue}
-                          onChange={(e) => updatePeriod(period.id, 'startValue', e.target.value)}
-                          placeholder="Start value (e.g., NOW(), '2024-01-01')"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setPeriodNowValue(period.id)}
-                          className="btn-now"
-                          title="Set to NOW()"
-                        >
-                          NOW()
-                        </button>
-                      </div>
-                      <select
-                        value={period.column}
-                        onChange={(e) => updatePeriod(period.id, 'column', e.target.value)}
-                      >
-                        <option value="">Select Date Column</option>
-                        {columns
-                          .filter(col => isDateColumn(col.column_name || col.name))
-                          .map(col => (
-                            <option key={col.column_name || col.name} value={col.column_name || col.name}>
-                              {col.column_name || col.name} ({col.data_type || col.type})
-                            </option>
-                          ))}
-                      </select>
                       <button 
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          removePeriod(period.id);
+                          removeIncludeTable(table.id);
                         }} 
                         className="btn-remove"
                       >
                         ×
                       </button>
                     </div>
-                    {period.timeScale && period.amount && period.startValue && period.column && (
-                      <div className="period-preview">
-                        <code>{getPeriodPreview(period)}</code>
+                    {table.tableName && (
+                      <div className="include-preview">
+                        <code>{table.tableName}</code>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="extend-section">
+                <div className="section-header">
+                  <h4>Extend Fields</h4>
+                  <div className="extend-actions">
+                    <button onClick={populateDefaultExtendFields} className="btn-secondary">Use Defaults</button>
+                    <button onClick={addExtendField} className="btn-secondary">Add Field</button>
+                  </div>
+                </div>
+                <p className="section-description">
+                  Add additional fields to your query. Use the "Use Defaults" button to populate common fields like +ip, +overlay_ip, +hostname, and @table_name.
+                </p>
+                {extendFields.map(field => (
+                  <div key={field.id} className="extend-field-item">
+                    <div className="controls-row">
+                      <input
+                        type="text"
+                        value={field.fieldName}
+                        onChange={(e) => updateExtendField(field.id, 'fieldName', e.target.value)}
+                        placeholder="e.g., +ip, +overlay_ip, +hostname, @table_name"
+                        className="field-name-input"
+                      />
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeExtendField(field.id);
+                        }} 
+                        className="btn-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {field.fieldName && (
+                      <div className="extend-preview">
+                        <code>{field.fieldName}</code>
                       </div>
                     )}
                   </div>
@@ -901,78 +1293,6 @@ const SqlQueryGenerator = ({ node }) => {
                   placeholder="e.g., 100"
                   min="1"
                 />
-              </div>
-
-              <div className="aggregations-section">
-                <div className="section-header">
-                  <h4>Aggregations (Additional Columns)</h4>
-                  <button onClick={addAggregation} className="btn-secondary">Add Aggregation</button>
-                </div>
-                <p className="section-description">
-                  Add aggregation functions as separate columns. You can have multiple aggregations on the same column (e.g., min(timestamp), max(timestamp)).
-                </p>
-                {aggregations.map(agg => (
-                  <div key={agg.id} className="aggregation-item">
-                    <div className="controls-row">
-                      <select
-                        value={agg.function}
-                        onChange={(e) => updateAggregation(agg.id, 'function', e.target.value)}
-                      >
-                        {isDateColumn(agg.column) ? (
-                          <>
-                            <option value="MIN">MIN (Date/Time)</option>
-                            <option value="MAX">MAX (Date/Time)</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="COUNT">COUNT</option>
-                            <option value="SUM">SUM</option>
-                            <option value="AVG">AVG</option>
-                            <option value="MIN">MIN</option>
-                            <option value="MAX">MAX</option>
-                          </>
-                        )}
-                      </select>
-                      <select
-                        value={agg.column}
-                        onChange={(e) => updateAggregation(agg.id, 'column', e.target.value)}
-                      >
-                        <option value="">Select Column</option>
-                        {columns.map(col => (
-                          <option key={col.column_name || col.name} value={col.column_name || col.name}>
-                            {col.column_name || col.name} ({col.data_type || col.type})
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={agg.alias}
-                        onChange={(e) => updateAggregation(agg.id, 'alias', e.target.value)}
-                        placeholder="Alias (optional)"
-                      />
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          removeAggregation(agg.id);
-                        }} 
-                        className="btn-remove"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    {agg.column && agg.function && (
-                      <div className="aggregation-preview">
-                        <code>{getAggregationPreview(agg)}</code>
-                        {isDateColumn(agg.column) && agg.function !== 'MIN' && agg.function !== 'MAX' && (
-                          <div className="warning-message">
-                            <strong>⚠️ Warning:</strong> Date/time columns only support MIN and MAX functions.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
 
               {/* <div className="joins-section">

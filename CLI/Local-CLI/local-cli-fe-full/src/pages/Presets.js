@@ -126,15 +126,15 @@ const Presets = () => {
       
       // Verify the group was actually deleted before updating state
       if (res.data && res.data.success !== false) {
-        // remove from state
-        setGroups(g => g.filter(x => x.id !== groupId));
-        // if it was selected, clear selection
-        if (selectedGroupId === groupId) {
-          setSelectedGroupId("");
-          setPresets([]);
-        }
-        setError("");
-        setSuccessMsg("Group deleted");
+      // remove from state
+      setGroups(g => g.filter(x => x.id !== groupId));
+      // if it was selected, clear selection
+      if (selectedGroupId === groupId) {
+        setSelectedGroupId("");
+        setPresets([]);
+      }
+      setError("");
+      setSuccessMsg("Group deleted");
       } else {
         throw new Error("Server indicated delete operation failed");
       }

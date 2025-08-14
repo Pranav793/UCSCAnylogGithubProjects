@@ -82,8 +82,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  background: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
 }
 
 .columns-header h3 {
@@ -92,9 +92,50 @@
   font-size: 16px;
 }
 
+.column-mode-toggle {
+  display: flex;
+  gap: 5px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.mode-btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.mode-btn.active {
+  background: #007bff;
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mode-btn.active:hover {
+  background: #0056b3;
+  color: white;
+}
+
+/* Column Selection Mode */
 .column-actions {
   display: flex;
   gap: 10px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
 }
 
 .columns-grid {
@@ -144,6 +185,144 @@
   font-family: 'Courier New', monospace;
 }
 
+/* Aggregations Mode */
+.aggregations-section {
+  padding: 20px;
+}
+
+.aggregations-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.aggregations-section .section-header h4 {
+  margin: 0;
+  color: #495057;
+  font-size: 16px;
+}
+
+.section-description {
+  color: #6c757d;
+  font-size: 14px;
+  margin: 0 0 15px 0;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.aggregation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  position: relative;
+  overflow: visible;
+}
+
+.aggregation-item:last-child {
+  margin-bottom: 0;
+}
+
+.aggregation-item .controls-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.aggregation-item select,
+.aggregation-item input {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.aggregation-item select {
+  max-width: 200px;
+}
+
+.aggregation-item select option {
+  background: white;
+  color: #495057;
+  padding: 8px;
+}
+
+.aggregation-preview {
+  padding: 10px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+}
+
+.aggregation-preview code {
+  font-family: 'Courier New', monospace;
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.warning-message {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  color: #856404;
+  font-size: 12px;
+}
+
+/* Remove button styling */
+.btn-remove {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background 0.2s ease;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove:hover {
+  background: #c82333;
+}
+
+/* Secondary button styling */
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.btn-secondary:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
+}
+
 /* Query Options Panel */
 .query-options-panel {
   background: white;
@@ -164,24 +343,115 @@
   gap: 15px;
 }
 
-/* Increments Panel */
+/* Time-Series Analysis Panel */
 .increments-panel {
   background: white;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  padding: 20px;
+  overflow: hidden;
 }
 
-.increments-panel h3 {
-  margin: 0 0 15px 0;
+.time-series-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.time-series-header h3 {
+  margin: 0;
   color: #495057;
   font-size: 16px;
 }
 
+.time-series-mode-toggle {
+  display: flex;
+  gap: 5px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+/* Increments Controls */
 .increments-controls {
+  padding: 20px;
+}
+
+/* Periods Section within Time-Series Analysis */
+.increments-panel .periods-section {
+  padding: 20px;
+  margin: 0;
+  border-top: none;
+}
+
+.increments-panel .periods-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.increments-panel .periods-section .section-header h4 {
+  margin: 0;
+  color: #495057;
+  font-size: 16px;
+}
+
+.period-item {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  position: relative;
+  overflow: visible;
+}
+
+.period-item:last-child {
+  margin-bottom: 0;
+}
+
+.period-item .controls-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.period-item select,
+.period-item input {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.period-item select {
+  max-width: 200px;
+}
+
+.period-preview {
+  padding: 10px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+}
+
+.period-preview code {
+  font-family: 'Courier New', monospace;
+  color: #1976d2;
+  font-weight: bold;
 }
 
 .increments-config {
@@ -248,9 +518,9 @@
 
 .advanced-options {
   padding: 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .option-group {
@@ -279,14 +549,7 @@
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-/* Aggregations and Joins Sections */
-.aggregations-section,
-.joins-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #dee2e6;
-}
-
+/* Section Headers for Advanced Options */
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -295,68 +558,32 @@
 }
 
 .section-header h4 {
-  margin: 0 0 10px 0;
+  margin: 0;
   color: #495057;
   font-size: 16px;
+  font-weight: 600;
 }
 
 .section-description {
   color: #6c757d;
   font-size: 14px;
-  margin: 0 0 15px 0;
-  line-height: 1.4;
-  font-style: italic;
-}
-
-.aggregation-item {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 15px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
   margin-bottom: 15px;
-  position: relative;
-  overflow: visible;
+  line-height: 1.5;
 }
 
-.aggregation-item:last-child {
-  margin-bottom: 0;
-}
-
-.aggregation-item .controls-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.aggregation-item select,
-.aggregation-item input {
-  flex: 1;
-  min-width: 120px;
-  padding: 8px;
-  border: 1px solid #ced4da;
+.section-description code {
+  background-color: #e9ecef;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 14px;
-}
-
-.aggregation-item select {
-  max-width: 200px;
-}
-
-/* Ensure dropdowns render properly */
-.aggregation-item select option {
-  background: white;
+  font-family: 'Courier New', monospace;
   color: #495057;
-  padding: 8px;
 }
 
-/* Container for the entire aggregations section */
-.aggregations-section {
-  position: relative;
-  z-index: 1;
+/* Joins Section */
+.joins-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #dee2e6;
 }
 
 /* Ensure the advanced options panel can handle overflow */
@@ -368,15 +595,19 @@
 /* WHERE Conditions Styling */
 .where-section {
   margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
 }
 
 .where-condition-item {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 15px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  padding: 12px;
+  background: white;
+  border: 1px solid #dee2e6;
   border-radius: 6px;
   margin-bottom: 15px;
   position: relative;
@@ -394,19 +625,7 @@
   flex-wrap: wrap;
 }
 
-.where-condition-item select,
-.where-condition-item input {
-  flex: 1;
-  min-width: 120px;
-  padding: 8px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
-}
 
-.where-condition-item select {
-  max-width: 150px;
-}
 
 .value-input-group {
   display: flex;
@@ -437,19 +656,11 @@
   background: #138496;
 }
 
-.where-preview {
-  margin-top: 8px;
-  padding: 6px 10px;
-  background: #e9ecef;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #495057;
-  border-left: 3px solid #28a745;
-}
 
-.where-preview code {
-  font-family: 'Courier New', monospace;
-  color: #28a745;
+
+.logical-operator {
+  color: #e83e8c;
+  font-weight: bold;
 }
 
 /* Periods Styling */
@@ -481,19 +692,7 @@
   flex-wrap: wrap;
 }
 
-.period-item select,
-.period-item input {
-  flex: 1;
-  min-width: 120px;
-  padding: 8px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
-}
 
-.period-item select {
-  max-width: 150px;
-}
 
 .period-preview {
   margin-top: 8px;
@@ -725,12 +924,23 @@
 
 /* Error Message */
 .error-message {
+  margin-top: 8px;
+  padding: 8px;
   background: #f8d7da;
-  color: #721c24;
-  padding: 15px;
   border: 1px solid #f5c6cb;
-  border-radius: 6px;
-  margin: 10px 0;
+  border-radius: 4px;
+  color: #721c24;
+  font-size: 12px;
+}
+
+.info-message {
+  margin-top: 8px;
+  padding: 8px;
+  background: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  color: #0c5460;
+  font-size: 12px;
 }
 
 /* Results Panel */
@@ -985,7 +1195,7 @@
   }
   
   .advanced-options {
-    grid-template-columns: 1fr;
+    gap: 15px;
   }
   
   .columns-grid {
@@ -1063,4 +1273,138 @@
   .query-actions button {
     width: 100%;
   }
+} 
+
+/* Include Tables Styling */
+.include-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.include-table-item {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+
+
+
+
+/* Extend Fields Styling */
+.extend-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.extend-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.extend-field-item {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+
+
+
+
+/* Periods Styling */ 
+
+/* Standardized Preview Styling */
+.where-preview,
+.include-preview,
+.extend-preview {
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+  border-left: 4px solid;
+}
+
+.where-preview {
+  background: #e3f2fd;
+  border-left-color: #2196f3;
+}
+
+.where-preview code {
+  font-family: 'Courier New', monospace;
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.include-preview {
+  background: #e3f2fd;
+  border-left-color: #2196f3;
+}
+
+.include-preview code {
+  font-family: 'Courier New', monospace;
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.extend-preview {
+  background: #e8f5e8;
+  border-left-color: #28a745;
+}
+
+.extend-preview code {
+  font-family: 'Courier New', monospace;
+  color: #155724;
+  font-weight: bold;
+} 
+
+/* Standardized Input Styling for Advanced Options */
+.where-condition-item input,
+.where-condition-item select,
+.include-table-item input,
+.extend-field-item input,
+.period-item input,
+.period-item select {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+}
+
+.where-condition-item input:focus,
+.where-condition-item select:focus,
+.include-table-item input:focus,
+.extend-field-item input:focus,
+.period-item input:focus,
+.period-item select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.where-condition-item select,
+.period-item select {
+  max-width: 150px;
+}
+
+.logical-operator-select {
+  max-width: 80px !important;
+  min-width: 80px !important;
+  flex: none !important;
+  background: #f8f9fa;
+  border-color: #6c757d;
+  font-weight: 600;
+  color: #495057;
 } 
