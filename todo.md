@@ -2,12 +2,14 @@
 1. logout of remote-cli
 2. log back in
 
-Expect: Success into http://23.239.12.151:3001
-Actual: goes to http://23.239.12.151:3001/dashboard/client
+**Expect**: Success into http://23.239.12.151:3001
+
+**Actual**: goes to http://23.239.12.151:3001/dashboard/client
+```
 Error: Error code: 404
 Message: File not found.
 Error code explanation: 404 - Nothing matches the given URI.
-
+```
 
 **Query Builder**: 
 
