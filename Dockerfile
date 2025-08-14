@@ -17,8 +17,8 @@ RUN npm install --legacy-peer-deps --no-audit --progress=false
 COPY CLI/Local-CLI/local-cli-fe-full ./
 
 # Build-time API URL (can be overridden at build time)
-ARG REACT_APP_API_URL=http://127.0.0.1:8000
-ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_API_URL=http://0.0.0.0:8000
+#ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
 # Prevent OOM in big builds
 ENV NODE_OPTIONS=--max_old_space_size=4096
