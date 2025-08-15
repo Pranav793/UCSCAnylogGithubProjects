@@ -6,10 +6,10 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 # File paths for data storage
-USERS_FILE = "users.json"
-BOOKMARKS_FILE = "bookmarks.json"
-PRESETS_FILE = "presets.json"
-PRESET_GROUPS_FILE = "preset_groups.json"
+USERS_FILE = "usr-mgm/users.json"
+BOOKMARKS_FILE = "usr-mgm/bookmarks.json"
+PRESETS_FILE = "usr-mgm/presets.json"
+PRESET_GROUPS_FILE = "usr-mgm/preset_groups.json"
 
 def hash_password(password: str) -> str:
     """Hash a password using SHA-256"""

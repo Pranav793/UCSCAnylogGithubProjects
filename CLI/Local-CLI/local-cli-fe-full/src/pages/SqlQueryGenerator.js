@@ -1149,8 +1149,6 @@ const SqlQueryGenerator = ({ node }) => {
                         <option value=">=">{'>='}</option>
                         <option value="<">{'<'}</option>
                         <option value="<=">{'<='}</option>
-                        <option value="LIKE">LIKE</option>
-                        <option value="IN">IN</option>
                       </select>
                       <div className="value-input-group">
                         <input
