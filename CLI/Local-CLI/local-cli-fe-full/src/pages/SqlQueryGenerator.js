@@ -27,6 +27,7 @@ const SqlQueryGenerator = ({ node }) => {
   const [whereConditions, setWhereConditions] = useState([]);
   const [periods, setPeriods] = useState([]);
   const [groupBy, setGroupBy] = useState('');
+  const [groupByColumns, setGroupByColumns] = useState([]);
   const [orderBy, setOrderBy] = useState('');
   const [limit, setLimit] = useState('');
   const [format, setFormat] = useState('json');
@@ -41,8 +42,18 @@ const SqlQueryGenerator = ({ node }) => {
   // Extend fields state for additional query fields
   const [extendFields, setExtendFields] = useState([]);
   
+  // Target nodes state for dynamic node discovery and filtering
+  const [useTargetNodes, setUseTargetNodes] = useState(false);
+  const [operators, setOperators] = useState([]);
+  const [operatorFilters, setOperatorFilters] = useState([]);
+  const [selectedNodes, setSelectedNodes] = useState([]);
+  const [loadingOperators, setLoadingOperators] = useState(false);
+  
+  // Validation state
+  const [groupByRequired, setGroupByRequired] = useState(false);
+  
   // Column selection mode state
-  const [columnMode, setColumnMode] = useState('columns'); // 'columns' or 'aggregations'
+  const [columnMode, setColumnMode] = useState('columns'); // 'columns', 'aggregations', or 'mixed'
   
   // Time-series analysis mode state
   const [timeSeriesMode, setTimeSeriesMode] = useState('none'); // 'none', 'increments', or 'periods'
@@ -89,7 +100,7 @@ const SqlQueryGenerator = ({ node }) => {
   // Update query when selections change
   useEffect(() => {
     buildQuery();
-  }, [selectedColumns, whereConditions, periods, groupBy, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn, columnMode, timeSeriesMode, includeTables, extendFields]);
+  }, [selectedColumns, whereConditions, periods, groupBy, groupByColumns, orderBy, limit, format, timezone, distinct, aggregations, joins, useIncrements, incrementsUnit, incrementsInterval, incrementsDateColumn, columnMode, timeSeriesMode, includeTables, extendFields, useTargetNodes, selectedNodes, operatorFilters]);
 
   const fetchDatabases = async () => {
     setLoading(true);
@@ -136,9 +147,13 @@ const SqlQueryGenerator = ({ node }) => {
 
   const buildQuery = () => {
     // Check if we have any content to build a query with
-    const hasRegularColumns = columnMode === 'columns' && selectedColumns.length > 0;
-    const hasAggregations = columnMode === 'aggregations' && aggregations.length > 0 && aggregations.some(agg => {
-      if (!agg.column || !agg.function) return false;
+    const hasRegularColumns = (columnMode === 'columns' || columnMode === 'mixed') && selectedColumns.length > 0;
+    const hasAggregations = (columnMode === 'aggregations' || columnMode === 'mixed') && aggregations.length > 0 && aggregations.some(agg => {
+      if (!agg.function) return false;
+      // Handle special functions like count(*)
+      if (agg.isSpecialFunction && agg.column === '*') return true;
+      // Handle regular column-based aggregations
+      if (!agg.column) return false;
       // Check if column is aggregatable
       if (!isAggregatableColumn(agg.column)) return false;
       // For date/time columns, only MIN and MAX are valid
@@ -166,8 +181,31 @@ const SqlQueryGenerator = ({ node }) => {
       return;
     }
 
+    // Check if GROUP BY is required (when mixing aggregations with non-aggregated columns)
+    const hasMixedColumns = (columnMode === 'mixed' || (columnMode === 'aggregations' && selectedColumns.length > 0)) && 
+                           selectedColumns.length > 0 && hasAggregations;
+    const hasGroupBy = groupByColumns.length > 0 || groupBy.trim() !== '';
+    
+    if (hasMixedColumns && !hasGroupBy) {
+      setGroupByRequired(true);
+      setQuery('');
+      return;
+    } else {
+      setGroupByRequired(false);
+    }
+
     // Build AnyLog SQL query: run client () sql [dbms] [query options] [select statement]
-    let anylogQuery = 'run client () sql ';
+    let anylogQuery = 'run client ';
+    
+    // Add target nodes if specified
+    if (useTargetNodes) {
+      const nodeSelectionQuery = buildNodeSelectionQuery();
+      anylogQuery += `(${nodeSelectionQuery}) `;
+    } else {
+      anylogQuery += '() ';
+    }
+    
+    anylogQuery += 'sql ';
     
     // Add database name
     anylogQuery += selectedDatabase;
@@ -213,16 +251,18 @@ const SqlQueryGenerator = ({ node }) => {
       selectClause += `min(${incrementsDateColumn}), max(${incrementsDateColumn})`;
     }
     
-    // Add selected columns (only in columns mode)
-    if (hasRegularColumns) {
-      if (selectClause.length > 0) {
-        selectClause += ', ';
+    // Add selected columns (in columns mode or mixed mode)
+    if (columnMode === 'columns' || columnMode === 'mixed') {
+      if (selectedColumns.length > 0) {
+        if (selectClause.length > 0) {
+          selectClause += ', ';
+        }
+        selectClause += selectedColumns.join(', ');
       }
-      selectClause += selectedColumns.join(', ');
     }
     
-    // Add aggregations as separate columns (only in aggregations mode)
-    if (hasAggregations) {
+    // Add aggregations (in aggregations mode or mixed mode)
+    if (columnMode === 'aggregations' || columnMode === 'mixed') {
       aggregations.forEach((agg, index) => {
         if (agg.function) {
           // Handle special functions like count(*)
@@ -328,7 +368,9 @@ const SqlQueryGenerator = ({ node }) => {
     }
     
     // Add GROUP BY clause
-    if (groupBy.trim()) {
+    if (groupByColumns.length > 0) {
+      anylogQuery += ` GROUP BY ${groupByColumns.join(', ')}`;
+    } else if (groupBy.trim()) {
       anylogQuery += ` GROUP BY ${groupBy}`;
     }
     
@@ -366,14 +408,117 @@ const SqlQueryGenerator = ({ node }) => {
     setSelectedColumns([]);
   };
 
+  const handleGroupByColumnToggle = (column) => {
+    setGroupByColumns(prev => {
+      if (prev.includes(column)) {
+        return prev.filter(col => col !== column);
+      } else {
+        return [...prev, column];
+      }
+    });
+  };
+
+  const handleSelectAllGroupByColumns = () => {
+    setGroupByColumns(columns.map(col => col.column_name || col.name));
+  };
+
+  const handleClearGroupByColumns = () => {
+    setGroupByColumns([]);
+  };
+
+  const fetchOperators = async () => {
+    if (!node) {
+      setError('No node connected. Please connect to a node first.');
+      return;
+    }
+
+    setLoadingOperators(true);
+    setError(null);
+    
+    try {
+      const result = await sendCommand({
+        connectInfo: node,
+        method: 'GET',
+        command: 'blockchain get operator'
+      });
+      
+      if (result && result.data) {
+        setOperators(result.data);
+        // Extract unique filter keys from operators
+        const filterKeys = new Set();
+        result.data.forEach(op => {
+          if (op.operator) {
+            Object.keys(op.operator).forEach(key => {
+              if (key !== 'ip' && key !== 'port' && key !== 'rest_port' && key !== 'broker_port') {
+                filterKeys.add(key);
+              }
+            });
+          }
+        });
+        console.log('Available filter keys:', Array.from(filterKeys));
+      }
+    } catch (err) {
+      setError('Failed to fetch operators: ' + err.message);
+      console.error('Error fetching operators:', err);
+    } finally {
+      setLoadingOperators(false);
+    }
+  };
+
+  const addOperatorFilter = () => {
+    const newFilter = {
+      id: Date.now(),
+      key: '',
+      operator: '=',
+      value: ''
+    };
+    setOperatorFilters([...operatorFilters, newFilter]);
+  };
+
+  const removeOperatorFilter = (id) => {
+    setOperatorFilters(operatorFilters.filter(filter => filter.id !== id));
+  };
+
+  const updateOperatorFilter = (id, field, value) => {
+    setOperatorFilters(operatorFilters.map(filter => 
+      filter.id === id ? { ...filter, [field]: value } : filter
+    ));
+  };
+
+  const buildNodeSelectionQuery = () => {
+    if (operatorFilters.length === 0) {
+      return 'blockchain get operator bring.ip_port';
+    }
+
+    const validFilters = operatorFilters.filter(filter => 
+      filter.key && filter.operator && filter.value !== undefined && filter.value !== ''
+    );
+
+    if (validFilters.length === 0) {
+      return 'blockchain get operator bring.ip_port';
+    }
+
+    const filterClause = validFilters.map(filter => {
+      let value = filter.value;
+      // Quote string values unless they're numbers or booleans
+      if (isNaN(value) && value !== 'true' && value !== 'false') {
+        value = `"${value}"`;
+      }
+      return `${filter.key}${filter.operator}${value}`;
+    }).join(' and ');
+
+    return `blockchain get operator where ${filterClause} bring.ip_port`;
+  };
+
   const handleColumnModeChange = (mode) => {
     setColumnMode(mode);
-    // Clear the other mode's data when switching
+    // Clear the other mode's data when switching to exclusive modes
     if (mode === 'columns') {
       setAggregations([]);
-    } else {
+    } else if (mode === 'aggregations') {
       setSelectedColumns([]);
     }
+    // For 'mixed' mode, keep both columns and aggregations
   };
 
   const handleTimeSeriesModeChange = (mode) => {
@@ -416,7 +561,7 @@ const SqlQueryGenerator = ({ node }) => {
     }
 
     // Basic validation for AnyLog SQL query format
-    if (!query.startsWith('run client () sql')) {
+    if (!query.startsWith('run client (')) {
       setExecutionError('Invalid query format. Query should start with "run client () sql"');
       return;
     }
@@ -462,6 +607,7 @@ const SqlQueryGenerator = ({ node }) => {
     setWhereConditions([]);
     setPeriods([]);
     setGroupBy('');
+    setGroupByColumns([]);
     setOrderBy('');
     setLimit('');
     setFormat('json');
@@ -754,6 +900,122 @@ const SqlQueryGenerator = ({ node }) => {
           </div>
         </div>
 
+        {/* Target Nodes Selection */}
+        <div className="target-nodes-panel">
+          <div className="panel-header">
+            <h3>Target Nodes</h3>
+            <div className="target-nodes-toggle">
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={useTargetNodes}
+                  onChange={(e) => setUseTargetNodes(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+              <span className="toggle-label">Enable Target Nodes</span>
+            </div>
+          </div>
+          
+          {useTargetNodes && (
+            <div className="target-nodes-content">
+              <div className="target-nodes-actions">
+                <button 
+                  onClick={fetchOperators} 
+                  className="btn-primary"
+                  disabled={loadingOperators}
+                >
+                  {loadingOperators ? 'Fetching...' : 'Fetch Available Operators'}
+                </button>
+                <button 
+                  onClick={addOperatorFilter} 
+                  className="btn-secondary"
+                >
+                  Add Filter
+                </button>
+              </div>
+              
+              {operators.length > 0 && (
+                <div className="operators-info">
+                  <p><strong>Found {operators.length} operators</strong></p>
+                </div>
+              )}
+              
+              {operatorFilters.length > 0 && (
+                <div className="operator-filters-section">
+                  <h4>Operator Filters</h4>
+                  <p className="section-description">
+                    Filter operators by specific criteria. Multiple filters are combined with AND.
+                  </p>
+                  {operatorFilters.map(filter => (
+                    <div key={filter.id} className="operator-filter-item">
+                      <div className="controls-row">
+                        <select
+                          value={filter.key}
+                          onChange={(e) => updateOperatorFilter(filter.id, 'key', e.target.value)}
+                        >
+                          <option value="">Select Field</option>
+                          {operators.length > 0 && operators[0]?.operator && 
+                            Object.keys(operators[0].operator)
+                              .filter(key => key !== 'ip' && key !== 'port' && key !== 'rest_port' && key !== 'broker_port')
+                              .map(key => (
+                                <option key={key} value={key}>
+                                  {key}
+                                </option>
+                              ))
+                          }
+                        </select>
+                        <select
+                          value={filter.operator}
+                          onChange={(e) => updateOperatorFilter(filter.id, 'operator', e.target.value)}
+                        >
+                          <option value="=">=</option>
+                          <option value="!=">!=</option>
+                          <option value=">">{'>'}</option>
+                          <option value=">=">{'>='}</option>
+                          <option value="<">{'<'}</option>
+                          <option value="<=">{'<='}</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={filter.value}
+                          onChange={(e) => updateOperatorFilter(filter.id, 'value', e.target.value)}
+                          placeholder="Enter value"
+                          className="filter-value-input"
+                        />
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeOperatorFilter(filter.id);
+                          }} 
+                          className="btn-remove"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      {filter.key && filter.operator && filter.value && (
+                        <div className="filter-preview">
+                          <code>{filter.key} {filter.operator} {isNaN(filter.value) && filter.value !== 'true' && filter.value !== 'false' ? `"${filter.value}"` : filter.value}</code>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {operatorFilters.length > 0 && (
+                <div className="node-selection-preview">
+                  <h4>Node Selection Query</h4>
+                  <div className="preview-box">
+                    <code>{buildNodeSelectionQuery()}</code>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Column Selection */}
         {selectedTable && (
           <div className="columns-panel">
@@ -772,11 +1034,24 @@ const SqlQueryGenerator = ({ node }) => {
                 >
                   Use Aggregations
                 </button>
+                <button 
+                  className={`mode-btn ${columnMode === 'mixed' ? 'active' : ''}`}
+                  onClick={() => handleColumnModeChange('mixed')}
+                >
+                  Mixed Mode
+                </button>
               </div>
             </div>
 
+            {/* GROUP BY Required Warning */}
+            {groupByRequired && (
+              <div className="group-by-warning">
+                <strong>⚠️ Warning:</strong> When using aggregations with non-aggregated columns, a GROUP BY clause is required. Please add GROUP BY columns in the Advanced Options section.
+              </div>
+            )}
+
             {/* Column Selection Mode */}
-            {columnMode === 'columns' && (
+            {(columnMode === 'columns' || columnMode === 'mixed') && (
               <>
                 <div className="column-actions">
                   <button onClick={handleSelectAllColumns} className="btn-secondary">
@@ -801,15 +1076,20 @@ const SqlQueryGenerator = ({ node }) => {
               </>
             )}
 
+            {/* Separator for Mixed Mode */}
+            {columnMode === 'mixed' && (
+              <div className="mixed-mode-separator"></div>
+            )}
+
             {/* Aggregations Mode */}
-            {columnMode === 'aggregations' && (
+            {(columnMode === 'aggregations' || columnMode === 'mixed') && (
               <div className="aggregations-section">
                 <div className="section-header">
                   <h4>Aggregations</h4>
                   <button onClick={addAggregation} className="btn-secondary">Add Aggregation</button>
                 </div>
                 <p className="section-description">
-                  Add aggregation functions as separate columns. Only date/time and numeric columns can be aggregated. You can have multiple aggregations on the same column (e.g., min(timestamp), max(timestamp)).
+                  Add aggregation functions as separate columns. Only date/time and numeric columns can be aggregated. You can have multiple aggregations on the same column (e.g., min(timestamp), max(timestamp)). In mixed mode, you can combine regular columns with aggregations.
                 </p>
                 {columns.filter(col => isAggregatableColumn(col.column_name || col.name)).length === 0 && (
                   <div className="info-message">
@@ -1280,6 +1560,36 @@ const SqlQueryGenerator = ({ node }) => {
                     )}
                   </div>
                 ))}
+              </div>
+              
+              <div className="group-by-section">
+                <div className="section-header">
+                  <h4>GROUP BY</h4>
+                  <div className="group-by-actions">
+                    <button onClick={handleSelectAllGroupByColumns} className="btn-secondary">Select All</button>
+                    <button onClick={handleClearGroupByColumns} className="btn-secondary">Clear All</button>
+                  </div>
+                </div>
+                <p className="section-description">
+                  Group your results by selected columns. This is useful when using aggregations to group data by specific fields. <strong>Note:</strong> When using aggregations with non-aggregated columns, GROUP BY is required.
+                </p>
+                <div className="group-by-columns-grid">
+                  {columns.map((column, index) => (
+                    <div 
+                      key={index} 
+                      className={`group-by-column-item ${groupByColumns.includes(column.column_name || column.name) ? 'selected' : ''}`}
+                      onClick={() => handleGroupByColumnToggle(column.column_name || column.name)}
+                    >
+                      <span className="column-name">{column.column_name || column.name}</span>
+                      <span className="column-type">{column.data_type || column.type}</span>
+                    </div>
+                  ))}
+                </div>
+                {groupByColumns.length > 0 && (
+                  <div className="group-by-preview">
+                    <code>GROUP BY {groupByColumns.join(', ')}</code>
+                  </div>
+                )}
               </div>
               
               <div className="option-group">

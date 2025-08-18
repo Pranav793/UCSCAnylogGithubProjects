@@ -91,6 +91,16 @@ const Client = ({ node }) => {
     setMethod(type.toUpperCase());
   };
 
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setCommand(text);
+    } catch (err) {
+      console.error('Failed to read from clipboard:', err);
+      setError('Failed to paste from clipboard. Please check clipboard permissions.');
+    }
+  };
+
   const toggleAuth = () => {
     setShowAuth(!showAuth);
   };
@@ -273,11 +283,21 @@ const Client = ({ node }) => {
 
         <div className="form-group">
           <label>Command:</label>
-          <textarea
-            rows={2}
-            value={command}
-            onChange={(e) => setCommand(e.target.value)}
-          />
+          <div className="command-input-container">
+            <button
+              type="button"
+              className="paste-button"
+              onClick={handlePasteFromClipboard}
+              title="Paste from clipboard"
+            >
+              📋 Paste
+            </button>
+            <textarea
+              rows={2}
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+            />
+          </div>
         </div>
 
         <button type="submit" className="send-button">

@@ -1408,3 +1408,263 @@
   font-weight: 600;
   color: #495057;
 } 
+
+/* Mixed Mode Styling */
+.mixed-mode-separator {
+  height: 1px;
+  background: #dee2e6;
+  margin: 20px 0;
+} 
+
+/* GROUP BY Styling */
+.group-by-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.group-by-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.group-by-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+  margin-top: 15px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.group-by-column-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.group-by-column-item:hover {
+  border-color: #28a745;
+  background: #f8fff9;
+}
+
+.group-by-column-item.selected {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.group-by-column-item.selected:hover {
+  background: #218838;
+}
+
+.group-by-preview {
+  padding: 8px 12px;
+  background: #e8f5e8;
+  border-radius: 4px;
+  border-left: 4px solid #28a745;
+  margin-top: 15px;
+}
+
+.group-by-preview code {
+  font-family: 'Courier New', monospace;
+  color: #155724;
+  font-weight: bold;
+} 
+
+/* Target Nodes Styling */
+.target-nodes-panel {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.panel-header h3 {
+  margin: 0;
+  color: #495057;
+  font-size: 16px;
+}
+
+.target-nodes-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #007bff;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.target-nodes-content {
+  padding: 20px;
+}
+
+.target-nodes-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.operators-info {
+  padding: 10px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+  margin-bottom: 20px;
+}
+
+.operators-info p {
+  margin: 0;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.operator-filters-section {
+  margin-bottom: 20px;
+}
+
+.operator-filter-item {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.filter-value-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.filter-value-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.filter-preview {
+  padding: 8px 12px;
+  background: #e8f5e8;
+  border-radius: 4px;
+  border-left: 4px solid #28a745;
+  margin-top: 8px;
+}
+
+.filter-preview code {
+  font-family: 'Courier New', monospace;
+  color: #155724;
+  font-weight: bold;
+}
+
+.node-selection-preview {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.node-selection-preview h4 {
+  margin: 0 0 10px 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.preview-box {
+  padding: 12px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+}
+
+.preview-box code {
+  font-family: 'Courier New', monospace;
+  color: #1976d2;
+  font-weight: bold;
+  font-size: 13px;
+} 
+
+.group-by-warning {
+  padding: 12px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  margin: 15px 20px;
+  color: #856404;
+  font-size: 14px;
+  border-left: 4px solid #ffc107;
+}
+
+.group-by-warning strong {
+  color: #856404;
+} 
